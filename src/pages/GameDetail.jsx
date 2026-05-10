@@ -8,7 +8,6 @@ import ErrorState from "@/components/shared/ErrorState";
 import GameHeader from "@/components/game/GameHeader";
 import GameBoxScore from "@/components/game/GameBoxScore";
 import GameRosters from "@/components/game/GameRosters";
-import GameInjuryReport from "@/components/game/GameInjuryReport";
 import GameRecentGames from "@/components/game/GameRecentGames";
 import GamePlayerAverages from "@/components/game/GamePlayerAverages";
 
@@ -63,9 +62,13 @@ export default function GameDetail() {
       </Link>
 
       {header && <GameHeader header={header} />}
-      {rosters.length > 0 && <GameInjuryReport rosters={rosters} />}
       {teams.length > 0 && (
-        <GameRecentGames teams={teams} recentGamesByTeam={recentGamesByTeam} isLoading={recentGamesLoading} />
+        <GameRecentGames
+          teams={teams}
+          rosters={rosters}
+          recentGamesByTeam={recentGamesByTeam}
+          isLoading={recentGamesLoading}
+        />
       )}
       {rosters.length > 0 && (
         <GamePlayerAverages

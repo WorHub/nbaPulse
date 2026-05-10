@@ -1,7 +1,82 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
-import { History } from "lucide-react";
+import { AlertTriangle, History } from "lucide-react";
+
+const STATUS_COLORS = {
+  out: "bg-destructive/20 text-destructive",
+  doubtful: "bg-orange-500/20 text-orange-400",
+  questionable: "bg-yellow-500/20 text-yellow-400",
+  probable: "bg-green-500/20 text-green-400",
+  day: "bg-yellow-500/20 text-yellow-400",
+};
+
+function getInjuryColor(status) {
+  const key = Object.keys(STATUS_COLORS).find((statusKey) =>
+    status?.toLowerCase().includes(statusKey)
+  );
+
+  return STATUS_COLORS[key] || "bg-muted text-muted-foreground";
+}
+
+function getTeamInjuries(rosters, team) {
+  const roster = rosters.find((entry) => {
+    const rosterTeam = entry.team || {};
+
+    return (
+      String(rosterTeam.id) === String(team.id) ||
+      rosterTeam.abbreviation === team.abbreviation ||
+      rosterTeam.displayName === team.displayName
+    );
+  });
+
+  return (roster?.roster || [])
+    .map((entry) => entry.athlete || entry)
+    .filter((player) => player.injuries?.length > 0);
+}
+
+function TeamInjuryReport({ injuries }) {
+  return (
+    <div className="p-4 border-b border-border bg-secondary/20">
+      <div className="flex items-center gap-2 mb-3">
+        <AlertTriangle className="w-4 h-4 text-destructive" />
+        <h4 className="text-sm font-bold text-foreground">Injury Report</h4>
+      </div>
+
+      {injuries.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No reported injuries</p>
+      ) : (
+        <div className="space-y-3">
+          {injuries.map((player) => {
+            const injury = player.injuries[0];
+            const headshot = player.headshot?.href;
+
+            return (
+              <div key={player.id} className="flex items-center gap-3">
+                {headshot ? (
+                  <img src={headshot} alt={player.displayName} className="w-8 h-8 rounded-full object-cover bg-muted flex-shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-muted flex-shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <Link to={`/player/${player.id}`} className="text-sm font-semibold text-foreground hover:text-primary transition-colors">
+                    {player.displayName || player.fullName}
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                    {injury.longComment || injury.shortComment || "No details available"}
+                  </p>
+                </div>
+                <span className={`text-xs font-semibold px-2 py-1 rounded-full flex-shrink-0 ${getInjuryColor(injury.status)}`}>
+                  {injury.status || "Injured"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function getTeams(event) {
   const competitors = event.competitions?.[0]?.competitors || [];
@@ -31,7 +106,7 @@ function TeamLine({ competitor }) {
   );
 }
 
-export default function GameRecentGames({ teams = [], recentGamesByTeam = {}, isLoading }) {
+export default function GameRecentGames({ teams = [], rosters = [], recentGamesByTeam = {}, isLoading }) {
   if (!teams.length) return null;
 
   return (
@@ -43,6 +118,7 @@ export default function GameRecentGames({ teams = [], recentGamesByTeam = {}, is
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {teams.map((team) => {
           const games = recentGamesByTeam[String(team.id)] || [];
+          const injuries = getTeamInjuries(rosters, team);
 
           return (
             <div key={team.id} className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -53,6 +129,8 @@ export default function GameRecentGames({ teams = [], recentGamesByTeam = {}, is
                   <p className="text-xs text-muted-foreground">Most recent completed games before this matchup</p>
                 </div>
               </div>
+
+              <TeamInjuryReport injuries={injuries} />
 
               {isLoading ? (
                 <p className="text-sm text-muted-foreground text-center py-8">Loading recent games...</p>
