@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchPlayerSeasonStats } from "@/lib/espn";
 import { GitCompare } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 const STATS = [
   { key: "avgPoints", label: "PTS" },

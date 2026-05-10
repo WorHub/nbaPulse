@@ -1,5 +1,4 @@
 import React from "react";
-import { format } from "date-fns";
 
 export default function GameHeader({ header }) {
   const competition = header?.competitions?.[0];
