@@ -32,9 +32,6 @@ export default function GameInjuryReport({ rosters }) {
     return { team: roster.team, injured };
   });
 
-  const hasAnyInjuries = allInjured.some((t) => t.injured.length > 0);
-  if (!hasAnyInjuries) return null;
-
   const activeTeam = allInjured[activeIdx];
 
   return (
