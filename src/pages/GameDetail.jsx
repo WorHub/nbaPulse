@@ -30,7 +30,8 @@ export default function GameDetail() {
   const rosters = data?.rosters || [];
   const teams = getGameTeams(header);
   const teamIds = teams.map((team) => team.id).filter(Boolean);
-  const gameDate = header?.competitions?.[0]?.date;
+  const competition = header?.competitions?.[0];
+  const gameDate = competition?.date;
   const seasonType = header?.season?.type || 2;
 
   const { data: recentGamesByTeam = {}, isLoading: recentGamesLoading } = useQuery({
@@ -48,7 +49,7 @@ export default function GameDetail() {
   if (isLoading) return <LoadingSpinner text="Loading game..." />;
   if (error) return <ErrorState message="Failed to load game" onRetry={refetch} />;
 
-  const gameState = header?.competitions?.[0]?.status?.type?.state;
+  const gameState = competition?.status?.type?.state;
   const isPreGame = gameState === "pre";
   const hasBoxScore = boxscore?.players?.length > 0;
 
@@ -63,7 +64,9 @@ export default function GameDetail() {
       </Link>
 
       {header && <GameHeader header={header} />}
-      {rosters.length > 0 && <GameInjuryReport rosters={rosters} gameDate={gameDate} />}
+      {rosters.length > 0 && (
+        <GameInjuryReport rosters={rosters} gameDate={gameDate} competitors={competition?.competitors || []} />
+      )}
       {rosters.length > 0 && (
         <GamePlayerAverages
           teams={teams}

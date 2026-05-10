@@ -6,6 +6,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const EMBIID_ID = "3059318";
 const EMBIID_FALLBACK_INJURY = {
   status: "Day-To-Day",
+  type: "Hip",
+  detail: "Soreness",
+  side: "Right",
   shortComment: "Hip soreness",
   longComment: "Joel Embiid is dealing with hip soreness.",
 };
@@ -57,23 +60,67 @@ function normalizeInjuries(player, useEmbiidFallback) {
   return [];
 }
 
-function getInjuryDetails(injury) {
-  return injury?.longComment
-    || injury?.shortComment
-    || injury?.details
-    || injury?.type
-    || injury?.location
-    || "No details available";
+function toTitleCase(value) {
+  if (!value) return "";
+
+  return String(value)
+    .replace(/[-_]/g, " ")
+    .trim()
+    .replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
 }
 
-export default function GameInjuryReport({ rosters, gameDate }) {
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getInjuryDetailParts(injury) {
+  const location = injury?.location || injury?.type || injury?.bodyPart;
+  const detail = injury?.detail || injury?.details || injury?.shortComment;
+  const side = injury?.side;
+
+  const parts = [];
+
+  if (location) parts.push(toTitleCase(location));
+
+  if (detail) {
+    const cleanedDetail = String(detail)
+      .replace(new RegExp(`^${escapeRegExp(String(location || "").trim())}\\s+`, "i"), "")
+      .trim();
+
+    if (cleanedDetail) parts.push(toTitleCase(cleanedDetail));
+  }
+
+  if (side) parts.push(`(${toTitleCase(side)})`);
+
+  if (parts.length > 0) return parts;
+
+  const comment = injury?.shortComment || injury?.longComment;
+  return comment ? [comment.replace(/\.$/, "")] : ["No details available"];
+}
+
+function orderRostersHomeFirst(rosters, competitors) {
+  if (!Array.isArray(competitors) || competitors.length === 0) return rosters;
+
+  const getOrder = (roster) => {
+    const competitor = competitors.find((entry) => String(entry.team?.id) === String(roster.team?.id));
+    if (competitor?.homeAway === "home") return 0;
+    if (competitor?.homeAway === "away") return 1;
+    return 2;
+  };
+
+  return [...rosters].sort((a, b) => getOrder(a) - getOrder(b));
+}
+
+export default function GameInjuryReport({ rosters, gameDate, competitors = [] }) {
   const [activeIdx, setActiveIdx] = useState(0);
 
   const useEmbiidFallback = useMemo(() => isTomorrow(gameDate), [gameDate]);
 
   if (!rosters || rosters.length === 0) return null;
 
-  const allInjured = rosters.map((roster) => {
+  const orderedRosters = orderRostersHomeFirst(rosters, competitors);
+
+  const allInjured = orderedRosters.map((roster) => {
     const injured = (roster.roster || [])
       .map((entry) => entry.athlete || entry)
       .filter(Boolean)
@@ -91,19 +138,20 @@ export default function GameInjuryReport({ rosters, gameDate }) {
   const activeTeam = allInjured[activeIdx] || allInjured[0];
 
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden mt-6">
-      <div className="p-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-destructive" />
-          <div>
-            <h3 className="font-bold text-foreground">Injury Report</h3>
-            <p className="text-xs text-muted-foreground">ESPN roster injury feed</p>
-          </div>
+    <div className="bg-card border border-border rounded-2xl overflow-hidden mt-8">
+      <div className="px-5 py-5 border-b border-border flex flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-destructive" />
+          <h3 className="text-xl font-extrabold tracking-tight text-foreground">Injury Report</h3>
         </div>
         <Tabs value={String(activeIdx)} onValueChange={(v) => setActiveIdx(Number(v))}>
-          <TabsList className="bg-secondary h-8">
-            {rosters.map((r, i) => (
-              <TabsTrigger key={r.team?.id || i} value={String(i)} className="text-xs h-7 px-3">
+          <TabsList className="h-10 rounded-2xl bg-secondary p-1">
+            {orderedRosters.map((r, i) => (
+              <TabsTrigger
+                key={r.team?.id || i}
+                value={String(i)}
+                className="h-8 min-w-14 rounded-xl px-4 text-sm font-semibold text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-none"
+              >
                 {r.team?.abbreviation}
               </TabsTrigger>
             ))}
@@ -112,7 +160,7 @@ export default function GameInjuryReport({ rosters, gameDate }) {
       </div>
 
       {activeTeam.injured.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">No reported injuries</p>
+        <p className="text-sm text-muted-foreground text-center py-8">No reported injuries</p>
       ) : (
         <div className="divide-y divide-border">
           {activeTeam.injured.map((player) => {
@@ -121,21 +169,21 @@ export default function GameInjuryReport({ rosters, gameDate }) {
             const status = injury.status || "Injured";
 
             return (
-              <div key={player.id} className="flex items-center gap-4 p-4">
+              <div key={player.id} className="flex items-center gap-5 px-5 py-6">
                 {headshot ? (
-                  <img src={headshot} alt={getPlayerName(player)} className="w-9 h-9 rounded-full object-cover bg-muted flex-shrink-0" />
+                  <img src={headshot} alt={getPlayerName(player)} className="w-11 h-11 rounded-full object-cover bg-muted flex-shrink-0" />
                 ) : (
-                  <div className="w-9 h-9 rounded-full bg-muted flex-shrink-0" />
+                  <div className="w-11 h-11 rounded-full bg-muted flex-shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <Link to={`/player/${player.id}`} className="font-semibold text-sm text-foreground hover:text-primary transition-colors">
+                  <Link to={`/player/${player.id}`} className="text-base font-extrabold text-foreground hover:text-primary transition-colors">
                     {getPlayerName(player)}
                   </Link>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                    {getInjuryDetails(injury)}
+                  <p className="text-sm text-muted-foreground mt-1 truncate">
+                    {getInjuryDetailParts(injury).join(" · ")}
                   </p>
                 </div>
-                <span className={`text-xs font-semibold px-2 py-1 rounded-full flex-shrink-0 ${getColor(status)}`}>
+                <span className={`text-sm font-extrabold px-3 py-1.5 rounded-full flex-shrink-0 ${getColor(status)}`}>
                   {status}
                 </span>
               </div>
