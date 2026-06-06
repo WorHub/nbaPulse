@@ -1,4 +1,6 @@
 const BASE = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba";
+const WEB_BASE = "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba";
+const CURRENT_NBA_SEASON = 2026;
 
 export function calcFantasyPoints({ pts = 0, reb = 0, ast = 0, stl = 0, blk = 0, to = 0 } = {}) {
   return parseFloat((pts * 1 + reb * 1.2 + ast * 1.5 + stl * 3 + blk * 3 - to * 1).toFixed(1));
@@ -26,7 +28,7 @@ export async function fetchTeam(abbrev) {
 }
 
 export async function fetchStandings() {
-  const res = await fetch(`https://site.api.espn.com/apis/v2/sports/basketball/nba/standings?season=2026`);
+  const res = await fetch(`https://site.api.espn.com/apis/v2/sports/basketball/nba/standings?season=${CURRENT_NBA_SEASON}`);
   return res.json();
 }
 
@@ -70,15 +72,14 @@ export async function fetchRecentGamesForTeams(options = {}) {
   }, {});
 }
 
-export async function fetchPlayerStats({ season = 2026, seasonType = 2, limit = 50, page = 1 } = {}) {
+export async function fetchPlayerStats({ season = CURRENT_NBA_SEASON, seasonType = 2, limit = 50, page = 1 } = {}) {
   const res = await fetch(
-    `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/statistics/byathlete?season=${season}&seasontype=${seasonType}&limit=${limit}&page=${page}`
+    `${WEB_BASE}/statistics/byathlete?season=${season}&seasontype=${seasonType}&limit=${limit}&page=${page}`
   );
   return res.json();
 }
 
-
-export async function fetchAllPlayerStats({ season = 2026, seasonType = 2, limit = 500 } = {}) {
+export async function fetchAllPlayerStats({ season = CURRENT_NBA_SEASON, seasonType = 2, limit = 500 } = {}) {
   const firstPage = await fetchPlayerStats({ season, seasonType, limit, page: 1 });
   const totalPages = firstPage?.pagination?.pages || 1;
 
@@ -107,15 +108,41 @@ export async function fetchAllPlayerStats({ season = 2026, seasonType = 2, limit
 }
 
 export async function fetchPlayerProfile(athleteId) {
+  const res = await fetch(`${WEB_BASE}/athletes/${athleteId}`);
+  return res.json();
+}
+
+export async function fetchPlayerSeasonStats(athleteId, options = {}) {
+  const { season = CURRENT_NBA_SEASON, seasonType = 2 } = options;
   const res = await fetch(
-    `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${athleteId}`
+    `${WEB_BASE}/athletes/${athleteId}/stats?season=${season}&seasontype=${seasonType}`
   );
   return res.json();
 }
 
-export async function fetchPlayerSeasonStats(athleteId) {
-  const res = await fetch(
-    `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${athleteId}/stats`
+export async function fetchPlayerCareerStats(athleteId, options = {}) {
+  const { startSeason, endSeason = CURRENT_NBA_SEASON, seasonType = 2 } = options;
+  const safeStartSeason = Math.max(Number(startSeason) || endSeason - 24, 1997);
+  const seasons = Array.from(
+    { length: endSeason - safeStartSeason + 1 },
+    (_, index) => endSeason - index
   );
+
+  const seasonStats = await Promise.all(
+    seasons.map(async (season) => {
+      try {
+        const data = await fetchPlayerSeasonStats(athleteId, { season, seasonType });
+        return { season, ...data };
+      } catch {
+        return { season, error: true };
+      }
+    })
+  );
+
+  return seasonStats;
+}
+
+export async function fetchPlayerNews(athleteId) {
+  const res = await fetch(`${BASE}/athletes/${athleteId}/news`);
   return res.json();
 }

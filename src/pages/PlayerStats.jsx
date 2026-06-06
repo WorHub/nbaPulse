@@ -15,13 +15,15 @@ const ALL_PLAYER_PAGE_SIZE = 500;
 const VIEWS = [
   { key: "offensive", label: "Scoring" },
   { key: "defensive", label: "Defense" },
-  { key: "general", label: "General" },
 ];
 
 // Indices into the API's totals array per category
 // offensive totals: PTS FGM FGA FG% 3PM 3PA 3P% FTM FTA FT% AST TO ...
 // general totals:   GP  MIN DD2 TD3 PF  +/- ... REB at idx 11
+const GP_COL = { label: "GP", cat: "general", idx: 0 };
+
 const OFFENSIVE_COLS = [
+  GP_COL,
   { label: "PTS", cat: "offensive", idx: 0 },
   { label: "FG%", cat: "offensive", idx: 3 },
   { label: "3P%", cat: "offensive", idx: 6 },
@@ -31,21 +33,14 @@ const OFFENSIVE_COLS = [
   { label: "REB", cat: "general",   idx: 11 },
 ];
 const DEFENSIVE_COLS = [
+  GP_COL,
   { label: "STL",  cat: "defensive", idx: 0 },
   { label: "BLK",  cat: "defensive", idx: 1 },
   { label: "DREB", cat: "defensive", idx: 2 },
 ];
-const GENERAL_COLS = [
-  { label: "GP",  cat: "general", idx: 0 },
-  { label: "MIN", cat: "general", idx: 1 },
-  { label: "PF",  cat: "general", idx: 4 },
-  { label: "+/-", cat: "general", idx: 5 },
-];
-
 const VIEW_COLS = {
   offensive: OFFENSIVE_COLS,
   defensive: DEFENSIVE_COLS,
-  general: GENERAL_COLS,
 };
 
 function SortIcon({ col, sortKey, dir }) {
@@ -144,7 +139,7 @@ export default function PlayerStats() {
             className="pl-9 bg-card h-9"
           />
         </div>
-        <Tabs value={view} onValueChange={(v) => { setView(v); setSortKey(getCols(v)[0]?.label || "PTS"); setSortDir("desc"); setPage(1); }}>
+        <Tabs value={view} onValueChange={(v) => { setView(v); setSortKey(v === "defensive" ? "STL" : "PTS"); setSortDir("desc"); setPage(1); }}>
           <TabsList className="bg-secondary h-8">
             {VIEWS.map(v => (
               <TabsTrigger key={v.key} value={v.key} className="text-xs h-7 px-3">{v.label}</TabsTrigger>
