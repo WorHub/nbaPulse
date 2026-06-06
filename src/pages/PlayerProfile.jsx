@@ -1,8 +1,8 @@
 import React from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchNbaDataCatalog, fetchPlayerCareerStats, fetchPlayerProfile, fetchPlayerSeasonStats } from "@/lib/espn";
-import { ArrowLeft, Activity, Database, Flame, Shield, Sparkles, TrendingUp } from "lucide-react";
+import { fetchPlayerCareerStats, fetchPlayerProfile, fetchPlayerSeasonStats } from "@/lib/espn";
+import { ArrowLeft, Activity, Flame, Shield, Sparkles, TrendingUp } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
@@ -178,11 +178,6 @@ export default function PlayerProfile() {
     enabled: Boolean(athleteId && athlete),
   });
 
-  const { data: archiveCatalog } = useQuery({
-    queryKey: ["nbaDataCatalog"],
-    queryFn: fetchNbaDataCatalog,
-  });
-
   if (profileLoading) return <LoadingSpinner text="Loading player..." />;
   if (profileError) return <ErrorState message="Failed to load player" onRetry={refetchProfile} />;
   if (!athlete) return <ErrorState message="Player not found" onRetry={refetchProfile} />;
@@ -354,24 +349,16 @@ export default function PlayerProfile() {
 
           <section className="bg-card border border-border rounded-2xl p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Database className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-bold text-foreground">Historic archive</h2>
+              <TrendingUp className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-bold text-foreground">Career context</h2>
             </div>
             <p className="text-sm text-muted-foreground leading-6">
-              Player pages now pair ESPN profile data with a historical-career lens and the shufinskiy NBA archive catalog for old-game context.
+              Player pages combine current profile details with season-by-season trends so long-term production is easy to scan.
             </p>
             <div className="grid grid-cols-2 gap-3 mt-4">
-              <StatBadge label="Archive seasons" value={archiveCatalog?.seasonRange || "1996-2024"} />
-              <StatBadge label="Data files" value={archiveCatalog?.count || "—"} />
+              <StatBadge label="Seasons" value={careerRows.length || "—"} />
+              <StatBadge label="Peak year" value={bestSeason?.label || "—"} />
             </div>
-            <a
-              href="https://github.com/shufinskiy/nba_data"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 text-xs font-semibold text-primary hover:underline mt-4"
-            >
-              View source archive
-            </a>
           </section>
 
           {(athlete.birthPlace || athlete.college) && (

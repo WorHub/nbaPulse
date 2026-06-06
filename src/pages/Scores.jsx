@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchNbaDataCatalog, fetchScoreboard } from "@/lib/espn";
+import { fetchScoreboard } from "@/lib/espn";
 import { format, addDays, subDays } from "date-fns";
-import { ChevronLeft, ChevronRight, CalendarDays, Database, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import ScoreCard from "@/components/scores/ScoreCard";
@@ -10,7 +10,7 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
 
 const HISTORIC_DATES = [
-  { label: "1997 archive tip-off", date: new Date(1996, 10, 1), note: "Early shufinskiy archive coverage" },
+  { label: "Opening night throwback", date: new Date(1996, 10, 1), note: "Bulls vs Celtics" },
   { label: "Kobe 81", date: new Date(2006, 0, 22), note: "Lakers vs Raptors" },
   { label: "2016 Finals G7", date: new Date(2016, 5, 19), note: "Cavaliers vs Warriors" },
   { label: "2024 Finals close", date: new Date(2024, 5, 17), note: "Celtics title night" },
@@ -27,11 +27,6 @@ export default function Scores() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["scoreboard", dateStr],
     queryFn: () => fetchScoreboard(dateStr),
-  });
-
-  const { data: archiveCatalog } = useQuery({
-    queryKey: ["nbaDataCatalog"],
-    queryFn: fetchNbaDataCatalog,
   });
 
   const games = data?.events || [];
@@ -69,13 +64,6 @@ export default function Scores() {
           <h1 className="text-2xl font-bold text-foreground">Scores</h1>
           <p className="text-sm text-muted-foreground mt-1">Live, recent, and historic NBA game results</p>
         </div>
-        <div className="hidden sm:flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
-          <Database className="w-4 h-4 text-primary" />
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Archive coverage</p>
-            <p className="text-xs font-bold text-foreground">{archiveCatalog?.seasonRange || "1996-2024"}</p>
-          </div>
-        </div>
       </div>
 
       {/* Date Navigation */}
@@ -103,6 +91,10 @@ export default function Scores() {
                 mode="single"
                 selected={selectedDate}
                 onSelect={handleDateSelect}
+                defaultMonth={selectedDate}
+                captionLayout="dropdown-buttons"
+                fromYear={1946}
+                toYear={new Date().getFullYear() + 1}
                 initialFocus
                 className="rounded-lg"
               />
@@ -132,7 +124,7 @@ export default function Scores() {
                 </button>
               ))}
               <div className="border-t border-border mt-2 pt-2 px-3 pb-1 text-[11px] leading-5 text-muted-foreground">
-                shufinskiy/nba_data catalogs NBA play-by-play and shots from 1996/97 onward; pick any date to browse old scoreboards.
+                Pick a featured date or use the calendar month and year menus to jump anywhere quickly.
               </div>
             </div>
           )}

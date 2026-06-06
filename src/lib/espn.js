@@ -146,30 +146,3 @@ export async function fetchPlayerNews(athleteId) {
   const res = await fetch(`${BASE}/athletes/${athleteId}/news`);
   return res.json();
 }
-
-
-export async function fetchNbaDataCatalog() {
-  const res = await fetch("https://raw.githubusercontent.com/shufinskiy/nba_data/main/list_data.txt");
-  const text = await res.text();
-  const entries = text
-    .trim()
-    .split("\n")
-    .map((line) => {
-      const [key, ...urlParts] = line.split("=");
-      return { key, url: urlParts.join("=") };
-    })
-    .filter((entry) => entry.key && entry.url);
-
-  const seasons = entries
-    .map((entry) => Number(entry.key.match(/(19|20)\d{2}$/)?.[0]))
-    .filter(Boolean);
-  const min = Math.min(...seasons);
-  const max = Math.max(...seasons);
-
-  return {
-    entries,
-    count: entries.length,
-    seasonRange: seasons.length ? `${min}-${max}` : "1996-2024",
-    sources: [...new Set(entries.map((entry) => entry.key.replace(/(_po)?_(19|20)\d{2}$/, "")))],
-  };
-}
