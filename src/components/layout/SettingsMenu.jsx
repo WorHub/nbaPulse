@@ -30,15 +30,15 @@ const themeOptions = [
   {
     value: "team",
     label: "Team Heat",
-    description: "NBA-inspired red & blue pop",
+    description: "Miami Heat-inspired red, black & gold",
     icon: CircleDot,
-    swatches: ["bg-blue-600", "bg-red-500"],
+    swatches: ["bg-red-800", "bg-zinc-950", "bg-yellow-500"],
   },
 ];
 
 export default function SettingsMenu() {
   const { theme, setTheme } = useTheme();
-  const currentTheme = theme || "dark";
+  const currentTheme = theme || "team";
 
   return (
     <DropdownMenu>
