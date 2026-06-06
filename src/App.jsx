@@ -17,6 +17,7 @@ import GameDetail from './pages/GameDetail';
 import PlayerStats from './pages/PlayerStats';
 import PlayerProfile from './pages/PlayerProfile';
 import DailyPerformers from './pages/DailyPerformers';
+import Draft from './pages/Draft';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -48,6 +49,7 @@ const AuthenticatedApp = () => {
         <Route path="/news" element={<News />} />
         <Route path="/game/:gameId" element={<GameDetail />} />
         <Route path="/players" element={<PlayerStats />} />
+        <Route path="/draft" element={<Draft />} />
         <Route path="/player/:athleteId" element={<PlayerProfile />} />
         <Route path="/daily" element={<DailyPerformers />} />
       </Route>

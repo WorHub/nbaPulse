@@ -8,6 +8,7 @@ const navLinks = [
   { label: "Scores", path: "/" },
   { label: "Standings", path: "/standings" },
   { label: "Players", path: "/players" },
+  { label: "Draft", path: "/draft" },
   { label: "Daily", path: "/daily" },
   { label: "News", path: "/news" },
 ];
