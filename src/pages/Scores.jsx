@@ -1,17 +1,25 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchScoreboard } from "@/lib/espn";
+import { fetchNbaDataCatalog, fetchScoreboard } from "@/lib/espn";
 import { format, addDays, subDays } from "date-fns";
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Database, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import ScoreCard from "@/components/scores/ScoreCard";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
 
+const HISTORIC_DATES = [
+  { label: "1997 archive tip-off", date: new Date(1996, 10, 1), note: "Early shufinskiy archive coverage" },
+  { label: "Kobe 81", date: new Date(2006, 0, 22), note: "Lakers vs Raptors" },
+  { label: "2016 Finals G7", date: new Date(2016, 5, 19), note: "Cavaliers vs Warriors" },
+  { label: "2024 Finals close", date: new Date(2024, 5, 17), note: "Celtics title night" },
+];
+
 export default function Scores() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [historicOpen, setHistoricOpen] = useState(false);
   const calendarRef = useRef(null);
 
   const dateStr = format(selectedDate, "yyyyMMdd");
@@ -21,11 +29,20 @@ export default function Scores() {
     queryFn: () => fetchScoreboard(dateStr),
   });
 
+  const { data: archiveCatalog } = useQuery({
+    queryKey: ["nbaDataCatalog"],
+    queryFn: fetchNbaDataCatalog,
+  });
+
   const games = data?.events || [];
 
   const goBack = () => setSelectedDate((d) => subDays(d, 1));
   const goForward = () => setSelectedDate((d) => addDays(d, 1));
   const goToday = () => setSelectedDate(new Date());
+  const jumpToDate = (date) => {
+    setSelectedDate(date);
+    setHistoricOpen(false);
+  };
 
   const handleDateSelect = (date) => {
     if (date) {
@@ -47,10 +64,17 @@ export default function Scores() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Scores</h1>
-          <p className="text-sm text-muted-foreground mt-1">Live and recent NBA game results</p>
+          <p className="text-sm text-muted-foreground mt-1">Live, recent, and historic NBA game results</p>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
+          <Database className="w-4 h-4 text-primary" />
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Archive coverage</p>
+            <p className="text-xs font-bold text-foreground">{archiveCatalog?.seasonRange || "1996-2024"}</p>
+          </div>
         </div>
       </div>
 
@@ -89,6 +113,30 @@ export default function Scores() {
         <Button variant="outline" size="icon" onClick={goForward} className="h-9 w-9">
           <ChevronRight className="w-4 h-4" />
         </Button>
+
+        <div className="relative">
+          <Button variant="outline" size="sm" onClick={() => setHistoricOpen((open) => !open)} className="h-9 text-xs gap-2">
+            <RotateCcw className="w-4 h-4" />
+            Historic games
+          </Button>
+          {historicOpen && (
+            <div className="absolute top-full left-0 mt-2 z-40 w-72 bg-card border border-border rounded-xl shadow-xl p-2">
+              {HISTORIC_DATES.map((item) => (
+                <button
+                  key={item.label}
+                  onClick={() => jumpToDate(item.date)}
+                  className="w-full text-left rounded-lg px-3 py-2 hover:bg-secondary transition-colors"
+                >
+                  <span className="block text-sm font-semibold text-foreground">{item.label}</span>
+                  <span className="block text-xs text-muted-foreground">{format(item.date, "MMM d, yyyy")} · {item.note}</span>
+                </button>
+              ))}
+              <div className="border-t border-border mt-2 pt-2 px-3 pb-1 text-[11px] leading-5 text-muted-foreground">
+                shufinskiy/nba_data catalogs NBA play-by-play and shots from 1996/97 onward; pick any date to browse old scoreboards.
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {isLoading && <LoadingSpinner text="Loading scores..." />}
