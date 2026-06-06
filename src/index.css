@@ -44,6 +44,77 @@
     --sidebar-ring: 25 95% 53%;
   }
 
+
+
+  .light {
+    --background: 40 35% 97%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 25 95% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 36 33% 92%;
+    --secondary-foreground: 222 47% 18%;
+    --muted: 36 28% 91%;
+    --muted-foreground: 220 10% 44%;
+    --accent: 25 95% 50%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 32 24% 84%;
+    --input: 32 24% 84%;
+    --ring: 25 95% 50%;
+    --chart-1: 25 95% 50%;
+    --chart-2: 199 89% 43%;
+    --chart-3: 142 64% 40%;
+    --chart-4: 280 65% 55%;
+    --chart-5: 340 75% 50%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 25 95% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 36 33% 92%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 32 24% 84%;
+    --sidebar-ring: 25 95% 50%;
+  }
+
+  .team {
+    --background: 224 47% 7%;
+    --foreground: 0 0% 98%;
+    --card: 224 43% 10%;
+    --card-foreground: 0 0% 98%;
+    --popover: 224 43% 10%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 225 34% 16%;
+    --secondary-foreground: 0 0% 92%;
+    --muted: 225 34% 16%;
+    --muted-foreground: 221 16% 66%;
+    --accent: 0 84% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 224 30% 20%;
+    --input: 224 30% 20%;
+    --ring: 217 91% 60%;
+    --chart-1: 217 91% 60%;
+    --chart-2: 0 84% 60%;
+    --chart-3: 45 96% 58%;
+    --chart-4: 160 84% 48%;
+    --chart-5: 280 85% 68%;
+    --sidebar-background: 224 43% 10%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 225 34% 16%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 224 30% 20%;
+    --sidebar-ring: 217 91% 60%;
+  }
   .dark {
     --background: 220 16% 4%;
     --foreground: 0 0% 96%;
@@ -86,5 +157,20 @@
   }
   body {
     @apply bg-background text-foreground font-sans;
+  }
+
+  body,
+  nav,
+  main,
+  [class*="bg-"] {
+    @apply transition-colors duration-300;
+  }
+
+  .team body,
+  .team .app-shell {
+    background:
+      radial-gradient(circle at top left, hsl(217 91% 60% / 0.18), transparent 28rem),
+      radial-gradient(circle at top right, hsl(0 84% 60% / 0.16), transparent 24rem),
+      hsl(var(--background));
   }
 }
