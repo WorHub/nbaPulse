@@ -77,6 +77,35 @@ export async function fetchPlayerStats({ season = 2026, seasonType = 2, limit = 
   return res.json();
 }
 
+
+export async function fetchAllPlayerStats({ season = 2026, seasonType = 2, limit = 500 } = {}) {
+  const firstPage = await fetchPlayerStats({ season, seasonType, limit, page: 1 });
+  const totalPages = firstPage?.pagination?.pages || 1;
+
+  if (totalPages <= 1) return firstPage;
+
+  const remainingPages = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, index) => (
+      fetchPlayerStats({ season, seasonType, limit, page: index + 2 })
+    ))
+  );
+  const athletes = [
+    ...(firstPage?.athletes || []),
+    ...remainingPages.flatMap((pageData) => pageData?.athletes || []),
+  ];
+
+  return {
+    ...firstPage,
+    athletes,
+    pagination: {
+      ...firstPage?.pagination,
+      page: 1,
+      pages: 1,
+      count: athletes.length,
+    },
+  };
+}
+
 export async function fetchPlayerProfile(athleteId) {
   const res = await fetch(
     `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${athleteId}`

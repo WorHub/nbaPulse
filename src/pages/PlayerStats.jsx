@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchPlayerStats } from "@/lib/espn";
+import { fetchAllPlayerStats, fetchPlayerStats } from "@/lib/espn";
 import { ChevronLeft, ChevronRight, Search, ChevronUp, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
-import PlayerComparison from "@/components/teams/PlayerComparison";
+
+const PAGE_SIZE = 50;
+const SEARCH_PAGE_SIZE = 500;
 
 const VIEWS = [
   { key: "offensive", label: "Scoring" },
@@ -55,9 +57,22 @@ export default function PlayerStats() {
   const [sortKey, setSortKey] = useState("PTS");
   const [sortDir, setSortDir] = useState("desc");
 
+  const trimmedSearch = search.trim();
+  const isSearching = trimmedSearch.length > 0;
+  const queryPage = isSearching ? 1 : page;
+  const queryLimit = isSearching ? SEARCH_PAGE_SIZE : PAGE_SIZE;
+  const playerStatsParams = {
+    season: 2026,
+    seasonType: Number(seasonType),
+    limit: queryLimit,
+    page: queryPage,
+  };
+
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["playerStats", page, seasonType],
-    queryFn: () => fetchPlayerStats({ season: 2026, seasonType: Number(seasonType), limit: 50, page }),
+    queryKey: ["playerStats", seasonType, isSearching ? "all" : queryPage],
+    queryFn: () => isSearching
+      ? fetchAllPlayerStats(playerStatsParams)
+      : fetchPlayerStats(playerStatsParams),
     keepPreviousData: true,
   });
 
@@ -85,10 +100,13 @@ export default function PlayerStats() {
   };
 
   const filtered = athletes.filter(a => {
-    if (!search) return true;
+    if (!trimmedSearch) return true;
+    const query = trimmedSearch.toLowerCase();
     const name = a.athlete?.displayName?.toLowerCase() || "";
+    const fullName = a.athlete?.fullName?.toLowerCase() || "";
+    const shortName = a.athlete?.shortName?.toLowerCase() || "";
     const team = a.athlete?.teamShortName?.toLowerCase() || "";
-    return name.includes(search.toLowerCase()) || team.includes(search.toLowerCase());
+    return name.includes(query) || fullName.includes(query) || shortName.includes(query) || team.includes(query);
   });
 
   const cols = getCols();
@@ -120,7 +138,7 @@ export default function PlayerStats() {
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search player or team..."
+            placeholder="Search all players or teams..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 bg-card h-9"
@@ -135,12 +153,9 @@ export default function PlayerStats() {
         </Tabs>
       </div>
 
-      {isLoading && <LoadingSpinner text="Loading stats..." />}
+      {isLoading && <LoadingSpinner text={isSearching ? "Searching all player stats..." : "Loading stats..."} />}
       {error && <ErrorState message="Failed to load player stats" onRetry={refetch} />}
 
-      {!isLoading && !error && athletes.length >= 2 && (
-        <PlayerComparison athletes={athletes.map(e => e.athlete).filter(Boolean)} />
-      )}
 
       {!isLoading && !error && (
         <>
@@ -167,43 +182,53 @@ export default function PlayerStats() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sorted.map((entry, index) => {
-                    const athlete = entry.athlete;
-                    const headshot = athlete?.headshot?.href;
-                    const globalRank = (page - 1) * 50 + index + 1;
+                  {sorted.length > 0 ? (
+                    sorted.map((entry, index) => {
+                      const athlete = entry.athlete;
+                      const headshot = athlete?.headshot?.href;
+                      const globalRank = isSearching ? index + 1 : (page - 1) * PAGE_SIZE + index + 1;
 
-                    return (
-                      <tr key={athlete?.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
-                        <td className="py-2.5 px-4 text-muted-foreground font-mono sticky left-0 bg-card">{globalRank}</td>
-                        <td className="py-2.5 px-4 sticky left-8 bg-card">
-                          <Link to={`/player/${athlete?.id}`} className="flex items-center gap-2.5 hover:text-primary transition-colors group">
-                            {headshot ? (
-                              <img src={headshot} alt={athlete?.displayName} className="w-7 h-7 rounded-full object-cover bg-muted flex-shrink-0" />
-                            ) : (
-                              <div className="w-7 h-7 rounded-full bg-muted flex-shrink-0" />
-                            )}
-                            <div>
-                              <div className="font-semibold text-foreground group-hover:text-primary whitespace-nowrap">{athlete?.displayName}</div>
-                              <div className="text-muted-foreground text-[10px]">{athlete?.position?.abbreviation}</div>
-                            </div>
-                          </Link>
-                        </td>
-                        <td className="py-2.5 px-3 text-center text-muted-foreground font-semibold">{athlete?.teamShortName}</td>
-                        {cols.map(col => {
-                          const raw = entry.categories?.find(c => c.name === col.cat)?.totals?.[col.idx] ?? "-";
-                          return (
-                            <td key={col.label} className="py-2.5 px-3 text-center font-mono text-muted-foreground">{raw}</td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
+                      return (
+                        <tr key={athlete?.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
+                          <td className="py-2.5 px-4 text-muted-foreground font-mono sticky left-0 bg-card">{globalRank}</td>
+                          <td className="py-2.5 px-4 sticky left-8 bg-card">
+                            <Link to={`/player/${athlete?.id}`} className="flex items-center gap-2.5 hover:text-primary transition-colors group">
+                              {headshot ? (
+                                <img src={headshot} alt={athlete?.displayName} className="w-7 h-7 rounded-full object-cover bg-muted flex-shrink-0" />
+                              ) : (
+                                <div className="w-7 h-7 rounded-full bg-muted flex-shrink-0" />
+                              )}
+                              <div>
+                                <div className="font-semibold text-foreground group-hover:text-primary whitespace-nowrap">{athlete?.displayName}</div>
+                                <div className="text-muted-foreground text-[10px]">{athlete?.position?.abbreviation}</div>
+                              </div>
+                            </Link>
+                          </td>
+                          <td className="py-2.5 px-3 text-center text-muted-foreground font-semibold">{athlete?.teamShortName}</td>
+                          {cols.map(col => {
+                            const raw = entry.categories?.find(c => c.name === col.cat)?.totals?.[col.idx] ?? "-";
+                            return (
+                              <td key={col.label} className="py-2.5 px-3 text-center font-mono text-muted-foreground">{raw}</td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={cols.length + 3} className="py-8 px-4 text-center text-sm text-muted-foreground">
+                        No players found for “{trimmedSearch}”.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
-          {!search && (
+          {isSearching ? (
+            <p className="text-xs text-muted-foreground">Showing {sorted.length} matching players from the full player stats list.</p>
+          ) : (
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">Page {page} of {totalPages} · {data?.pagination?.count || 0} players</p>
               <div className="flex items-center gap-2">
