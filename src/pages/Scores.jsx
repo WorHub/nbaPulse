@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchScoreboard, findNearestGameDate, findNearestCompletedGameDate } from "@/lib/espn";
 import { format, addDays, subDays, isAfter, isSameDay } from "date-fns";
@@ -22,9 +22,10 @@ export default function Scores() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [historicOpen, setHistoricOpen] = useState(false);
-  const [isFindingGameDay, setIsFindingGameDay] = useState(false);
+  const [isFindingGameDay, setIsFindingGameDay] = useState(true);
   const calendarRef = useRef(null);
   const fallbackDateRef = useRef(null);
+  const gameDayRequestRef = useRef(0);
 
   const dateStr = format(selectedDate, "yyyyMMdd");
 
@@ -35,21 +36,34 @@ export default function Scores() {
 
   const games = data?.events || [];
 
-  const moveToGameDay = async (date, direction = "nearest") => {
+  const moveToGameDay = useCallback(async (date, direction = "nearest", completedOnly = false) => {
     if (isAfter(ARCHIVE_START_DATE, date)) return;
 
+    const requestId = gameDayRequestRef.current + 1;
+    gameDayRequestRef.current = requestId;
     setIsFindingGameDay(true);
+
     try {
-      const gameDate = await findNearestGameDate(date, direction);
-      setSelectedDate(isAfter(ARCHIVE_START_DATE, gameDate) ? ARCHIVE_START_DATE : gameDate);
+      const finder = completedOnly ? findNearestCompletedGameDate : findNearestGameDate;
+      const gameDate = await finder(date, direction);
+
+      if (gameDayRequestRef.current === requestId) {
+        setSelectedDate(isAfter(ARCHIVE_START_DATE, gameDate) ? ARCHIVE_START_DATE : gameDate);
+      }
+    } catch {
+      if (gameDayRequestRef.current === requestId) {
+        setSelectedDate(date);
+      }
     } finally {
-      setIsFindingGameDay(false);
+      if (gameDayRequestRef.current === requestId) {
+        setIsFindingGameDay(false);
+      }
     }
-  };
+  }, []);
 
   const goBack = () => moveToGameDay(subDays(selectedDate, 1), "back");
   const goForward = () => moveToGameDay(addDays(selectedDate, 1), "forward");
-  const goToday = () => moveToGameDay(new Date(), "nearest");
+  const goToday = () => moveToGameDay(new Date(), "back", true);
   const jumpToDate = (date) => {
     moveToGameDay(date, "nearest");
     setHistoricOpen(false);
@@ -63,19 +77,26 @@ export default function Scores() {
   };
 
   useEffect(() => {
+    moveToGameDay(new Date(), "back", true);
+  }, [moveToGameDay]);
+
+  useEffect(() => {
     if (isLoading || error || isFindingGameDay || games.length > 0 || fallbackDateRef.current === dateStr) return;
 
     let cancelled = false;
     fallbackDateRef.current = dateStr;
     setIsFindingGameDay(true);
+    const requestId = gameDayRequestRef.current + 1;
+    gameDayRequestRef.current = requestId;
+
     findNearestCompletedGameDate(selectedDate, "back")
       .then((gameDate) => {
-        if (!cancelled && !isSameDay(gameDate, selectedDate)) {
+        if (!cancelled && gameDayRequestRef.current === requestId && !isSameDay(gameDate, selectedDate)) {
           setSelectedDate(gameDate);
         }
       })
       .finally(() => {
-        if (!cancelled) setIsFindingGameDay(false);
+        if (!cancelled && gameDayRequestRef.current === requestId) setIsFindingGameDay(false);
       });
 
     return () => {
