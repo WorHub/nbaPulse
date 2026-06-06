@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchScoreboard } from "@/lib/espn";
-import { format, addDays, subDays } from "date-fns";
+import { format, addDays, subDays, isAfter } from "date-fns";
 import { ChevronLeft, ChevronRight, CalendarDays, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import ScoreCard from "@/components/scores/ScoreCard";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
+
+const ARCHIVE_START_DATE = new Date(1996, 0, 1);
 
 const HISTORIC_DATES = [
   { label: "Opening night throwback", date: new Date(1996, 10, 1), note: "Bulls vs Celtics" },
@@ -31,7 +33,10 @@ export default function Scores() {
 
   const games = data?.events || [];
 
-  const goBack = () => setSelectedDate((d) => subDays(d, 1));
+  const goBack = () => setSelectedDate((d) => {
+    const previousDate = subDays(d, 1);
+    return isAfter(ARCHIVE_START_DATE, previousDate) ? d : previousDate;
+  });
   const goForward = () => setSelectedDate((d) => addDays(d, 1));
   const goToday = () => setSelectedDate(new Date());
   const jumpToDate = (date) => {
@@ -68,7 +73,7 @@ export default function Scores() {
 
       {/* Date Navigation */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
-        <Button variant="outline" size="icon" onClick={goBack} className="h-9 w-9">
+        <Button variant="outline" size="icon" onClick={goBack} disabled={!isAfter(selectedDate, ARCHIVE_START_DATE)} className="h-9 w-9">
           <ChevronLeft className="w-4 h-4" />
         </Button>
         <Button variant="outline" size="sm" onClick={goToday} className="h-9 text-xs">
@@ -93,8 +98,9 @@ export default function Scores() {
                 onSelect={handleDateSelect}
                 defaultMonth={selectedDate}
                 captionLayout="dropdown-buttons"
-                fromYear={1946}
+                fromYear={1996}
                 toYear={new Date().getFullYear() + 1}
+                disabled={{ before: ARCHIVE_START_DATE }}
                 initialFocus
                 className="rounded-lg"
               />

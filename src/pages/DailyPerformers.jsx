@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchScoreboard, calcFantasyPoints } from "@/lib/espn";
-import { format, subDays, addDays } from "date-fns";
+import { format, subDays, addDays, isAfter } from "date-fns";
 import { ChevronLeft, ChevronRight, CalendarDays, Star, Trophy, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -11,6 +11,7 @@ import ErrorState from "@/components/shared/ErrorState";
 
 // Box score stats order: MIN PTS FG 3PT FT REB AST TO STL BLK OREB DREB PF +/-
 const IDX = { MIN: 0, PTS: 1, FG: 2, "3PT": 3, FT: 4, REB: 5, AST: 6, TO: 7, STL: 8, BLK: 9, OREB: 10, DREB: 11, PF: 12, PM: 13 };
+const ARCHIVE_START_DATE = new Date(1996, 0, 1);
 
 function parseStat(statsArr, key) {
   const val = statsArr?.[IDX[key]];
@@ -180,7 +181,16 @@ export default function DailyPerformers() {
           <p className="text-sm text-muted-foreground mt-1">Top fantasy performers ranked by FPTS</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setSelectedDate(d => subDays(d, 1))}>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9"
+            onClick={() => setSelectedDate((d) => {
+              const previousDate = subDays(d, 1);
+              return isAfter(ARCHIVE_START_DATE, previousDate) ? d : previousDate;
+            })}
+            disabled={!isAfter(selectedDate, ARCHIVE_START_DATE)}
+          >
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <div className="relative" ref={calendarRef}>
@@ -199,8 +209,9 @@ export default function DailyPerformers() {
                   onSelect={(d) => { if (d) { setSelectedDate(d); setCalendarOpen(false); } }}
                   defaultMonth={selectedDate}
                   captionLayout="dropdown-buttons"
-                  fromYear={1946}
+                  fromYear={1996}
                   toYear={new Date().getFullYear() + 1}
+                  disabled={{ before: ARCHIVE_START_DATE }}
                   initialFocus
                 />
               </div>
