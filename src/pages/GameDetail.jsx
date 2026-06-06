@@ -1,5 +1,5 @@
 import React from "react";
-import { useParams, Link } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchGameSummary, fetchPlayerStats, fetchRecentGamesForTeams } from "@/lib/espn";
 import { ArrowLeft } from "lucide-react";
@@ -19,6 +19,7 @@ function getGameTeams(header) {
 
 export default function GameDetail() {
   const { gameId } = useParams();
+  const navigate = useNavigate();
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["game", gameId],
@@ -54,13 +55,14 @@ export default function GameDetail() {
 
   return (
     <div>
-      <Link
-        to="/"
+      <button
+        type="button"
+        onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))}
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Scores
-      </Link>
+        Back
+      </button>
 
       {header && <GameHeader header={header} />}
       {hasBoxScore && <GameBoxScore boxscore={boxscore} gameId={gameId} />}

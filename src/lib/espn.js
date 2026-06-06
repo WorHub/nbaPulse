@@ -7,8 +7,10 @@ export function calcFantasyPoints({ pts = 0, reb = 0, ast = 0, stl = 0, blk = 0,
 }
 
 export async function fetchScoreboard(date) {
-  const params = date ? `?dates=${date}` : "";
-  const res = await fetch(`${BASE}/scoreboard${params}`);
+  const params = new URLSearchParams({ limit: "500" });
+  if (date) params.set("dates", date);
+
+  const res = await fetch(`${BASE}/scoreboard?${params.toString()}`);
   return res.json();
 }
 
