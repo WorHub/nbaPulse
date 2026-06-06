@@ -9,39 +9,39 @@
     --font-sans: 'Inter', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
 
-    --background: 0 0% 3%;
+    --background: 222 60% 5%;
     --foreground: 0 0% 98%;
-    --card: 345 34% 7%;
+    --card: 222 48% 8%;
     --card-foreground: 0 0% 98%;
-    --popover: 345 34% 7%;
+    --popover: 222 48% 8%;
     --popover-foreground: 0 0% 98%;
-    --primary: 342 100% 30%;
+    --primary: 220 100% 38%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 344 38% 13%;
+    --secondary: 222 38% 14%;
     --secondary-foreground: 0 0% 92%;
-    --muted: 344 38% 13%;
-    --muted-foreground: 0 0% 68%;
-    --accent: 38 98% 49%;
-    --accent-foreground: 0 0% 4%;
+    --muted: 222 38% 14%;
+    --muted-foreground: 218 20% 72%;
+    --accent: 356 78% 51%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 343 42% 18%;
-    --input: 343 42% 18%;
-    --ring: 38 98% 49%;
-    --chart-1: 342 100% 30%;
-    --chart-2: 38 98% 49%;
+    --border: 222 36% 18%;
+    --input: 222 36% 18%;
+    --ring: 356 78% 51%;
+    --chart-1: 220 100% 38%;
+    --chart-2: 356 78% 51%;
     --chart-3: 0 0% 98%;
-    --chart-4: 0 0% 25%;
-    --chart-5: 342 84% 54%;
+    --chart-4: 215 38% 28%;
+    --chart-5: 213 94% 68%;
     --radius: 0.75rem;
-    --sidebar-background: 345 34% 7%;
+    --sidebar-background: 222 48% 8%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 342 100% 30%;
+    --sidebar-primary: 220 100% 38%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 344 38% 13%;
+    --sidebar-accent: 222 38% 14%;
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 343 42% 18%;
-    --sidebar-ring: 38 98% 49%;
+    --sidebar-border: 222 36% 18%;
+    --sidebar-ring: 356 78% 51%;
   }
 
 
@@ -81,39 +81,40 @@
     --sidebar-ring: 25 95% 50%;
   }
 
+  .nba,
   .team {
-    --background: 0 0% 3%;
+    --background: 222 60% 5%;
     --foreground: 0 0% 98%;
-    --card: 345 34% 7%;
+    --card: 222 48% 8%;
     --card-foreground: 0 0% 98%;
-    --popover: 345 34% 7%;
+    --popover: 222 48% 8%;
     --popover-foreground: 0 0% 98%;
-    --primary: 342 100% 30%;
+    --primary: 220 100% 38%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 344 38% 13%;
+    --secondary: 222 38% 14%;
     --secondary-foreground: 0 0% 92%;
-    --muted: 344 38% 13%;
-    --muted-foreground: 0 0% 68%;
-    --accent: 38 98% 49%;
-    --accent-foreground: 0 0% 4%;
+    --muted: 222 38% 14%;
+    --muted-foreground: 218 20% 72%;
+    --accent: 356 78% 51%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 343 42% 18%;
-    --input: 343 42% 18%;
-    --ring: 38 98% 49%;
-    --chart-1: 342 100% 30%;
-    --chart-2: 38 98% 49%;
+    --border: 222 36% 18%;
+    --input: 222 36% 18%;
+    --ring: 356 78% 51%;
+    --chart-1: 220 100% 38%;
+    --chart-2: 356 78% 51%;
     --chart-3: 0 0% 98%;
-    --chart-4: 0 0% 25%;
-    --chart-5: 342 84% 54%;
-    --sidebar-background: 345 34% 7%;
+    --chart-4: 215 38% 28%;
+    --chart-5: 213 94% 68%;
+    --sidebar-background: 222 48% 8%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 342 100% 30%;
+    --sidebar-primary: 220 100% 38%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 344 38% 13%;
+    --sidebar-accent: 222 38% 14%;
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 343 42% 18%;
-    --sidebar-ring: 38 98% 49%;
+    --sidebar-border: 222 36% 18%;
+    --sidebar-ring: 356 78% 51%;
   }
   .dark {
     --background: 220 16% 4%;
@@ -166,11 +167,13 @@
     @apply transition-colors duration-300;
   }
 
+  .nba body,
+  .nba .app-shell,
   .team body,
   .team .app-shell {
     background:
-      radial-gradient(circle at top left, hsl(342 100% 30% / 0.28), transparent 28rem),
-      radial-gradient(circle at top right, hsl(38 98% 49% / 0.18), transparent 24rem),
-      hsl(var(--background));
+      radial-gradient(circle at top left, hsl(220 100% 38% / 0.34), transparent 28rem),
+      radial-gradient(circle at top right, hsl(356 78% 51% / 0.22), transparent 24rem),
+      linear-gradient(135deg, hsl(222 60% 5%) 0%, hsl(222 52% 7%) 52%, hsl(222 60% 5%) 100%);
   }
 }
