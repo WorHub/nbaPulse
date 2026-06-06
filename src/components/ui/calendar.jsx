@@ -27,7 +27,7 @@ function Calendar({
         dropdown_month: "relative inline-flex h-9 items-center",
         dropdown_year: "relative inline-flex h-9 items-center",
         dropdown:
-          "absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none opacity-0",
+          "absolute inset-0 z-10 h-full w-full cursor-pointer appearance-none rounded-xl border-0 bg-popover text-popover-foreground opacity-0 focus:opacity-100 [&>option]:bg-popover [&>option]:text-popover-foreground [&>option:checked]:bg-primary [&>option:checked]:text-primary-foreground",
         dropdown_icon: "ml-2 h-4 w-4 shrink-0 text-primary opacity-80",
         vhidden: "sr-only",
         nav: "absolute inset-x-0 top-1 flex items-center justify-between px-1",
