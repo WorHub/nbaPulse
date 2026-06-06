@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAllPlayerStats, fetchPlayerStats } from "@/lib/espn";
+import { fetchAllPlayerStats } from "@/lib/espn";
 import { ChevronLeft, ChevronRight, Search, ChevronUp, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
 
 const PAGE_SIZE = 50;
-const SEARCH_PAGE_SIZE = 500;
+const ALL_PLAYER_PAGE_SIZE = 500;
 
 const VIEWS = [
   { key: "offensive", label: "Scoring" },
@@ -42,6 +42,12 @@ const GENERAL_COLS = [
   { label: "+/-", cat: "general", idx: 5 },
 ];
 
+const VIEW_COLS = {
+  offensive: OFFENSIVE_COLS,
+  defensive: DEFENSIVE_COLS,
+  general: GENERAL_COLS,
+};
+
 function SortIcon({ col, sortKey, dir }) {
   if (sortKey !== col) return <ChevronUp className="w-3 h-3 opacity-20" />;
   return dir === "desc"
@@ -59,31 +65,20 @@ export default function PlayerStats() {
 
   const trimmedSearch = search.trim();
   const isSearching = trimmedSearch.length > 0;
-  const queryPage = isSearching ? 1 : page;
-  const queryLimit = isSearching ? SEARCH_PAGE_SIZE : PAGE_SIZE;
   const playerStatsParams = {
     season: 2026,
     seasonType: Number(seasonType),
-    limit: queryLimit,
-    page: queryPage,
+    limit: ALL_PLAYER_PAGE_SIZE,
   };
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["playerStats", seasonType, isSearching ? "all" : queryPage],
-    queryFn: () => isSearching
-      ? fetchAllPlayerStats(playerStatsParams)
-      : fetchPlayerStats(playerStatsParams),
-    keepPreviousData: true,
+    queryKey: ["playerStats", seasonType, "all"],
+    queryFn: () => fetchAllPlayerStats(playerStatsParams),
   });
 
   const athletes = data?.athletes || [];
-  const totalPages = data?.pagination?.pages || 1;
 
-  const getCols = () => {
-    if (view === "offensive") return OFFENSIVE_COLS;
-    if (view === "defensive") return DEFENSIVE_COLS;
-    return GENERAL_COLS;
-  };
+  const getCols = (nextView = view) => VIEW_COLS[nextView] || OFFENSIVE_COLS;
 
   const getStatVal = (entry, catName, idx) => {
     const cat = entry.categories?.find(c => c.name === catName);
@@ -91,6 +86,8 @@ export default function PlayerStats() {
   };
 
   const toggleSort = (label) => {
+    setPage(1);
+
     if (sortKey === label) {
       setSortDir(d => d === "desc" ? "asc" : "desc");
     } else {
@@ -118,6 +115,9 @@ export default function PlayerStats() {
     const bVal = getStatVal(b, col.cat, col.idx);
     return sortDir === "desc" ? bVal - aVal : aVal - bVal;
   });
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const pageStart = (page - 1) * PAGE_SIZE;
+  const displayed = isSearching ? sorted : sorted.slice(pageStart, pageStart + PAGE_SIZE);
 
   return (
     <div>
@@ -140,11 +140,11 @@ export default function PlayerStats() {
           <Input
             placeholder="Search all players or teams..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="pl-9 bg-card h-9"
           />
         </div>
-        <Tabs value={view} onValueChange={(v) => { setView(v); setSortKey(getCols()[0]?.label || "PTS"); }}>
+        <Tabs value={view} onValueChange={(v) => { setView(v); setSortKey(getCols(v)[0]?.label || "PTS"); setSortDir("desc"); setPage(1); }}>
           <TabsList className="bg-secondary h-8">
             {VIEWS.map(v => (
               <TabsTrigger key={v.key} value={v.key} className="text-xs h-7 px-3">{v.label}</TabsTrigger>
@@ -153,7 +153,7 @@ export default function PlayerStats() {
         </Tabs>
       </div>
 
-      {isLoading && <LoadingSpinner text={isSearching ? "Searching all player stats..." : "Loading stats..."} />}
+      {isLoading && <LoadingSpinner text="Loading all player stats..." />}
       {error && <ErrorState message="Failed to load player stats" onRetry={refetch} />}
 
 
@@ -182,11 +182,11 @@ export default function PlayerStats() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sorted.length > 0 ? (
-                    sorted.map((entry, index) => {
+                  {displayed.length > 0 ? (
+                    displayed.map((entry, index) => {
                       const athlete = entry.athlete;
                       const headshot = athlete?.headshot?.href;
-                      const globalRank = isSearching ? index + 1 : (page - 1) * PAGE_SIZE + index + 1;
+                      const globalRank = isSearching ? index + 1 : pageStart + index + 1;
 
                       return (
                         <tr key={athlete?.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
@@ -230,7 +230,7 @@ export default function PlayerStats() {
             <p className="text-xs text-muted-foreground">Showing {sorted.length} matching players from the full player stats list.</p>
           ) : (
             <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">Page {page} of {totalPages} · {data?.pagination?.count || 0} players</p>
+              <p className="text-xs text-muted-foreground">Page {page} of {totalPages} · {sorted.length} players</p>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>
                   <ChevronLeft className="w-4 h-4" />
