@@ -193,7 +193,16 @@ export default function DailyPerformers() {
             </button>
             {calendarOpen && (
               <div className="absolute top-full right-0 mt-2 z-50 bg-card border border-border rounded-xl shadow-xl p-2">
-                <Calendar mode="single" selected={selectedDate} onSelect={(d) => { if (d) { setSelectedDate(d); setCalendarOpen(false); } }} initialFocus />
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(d) => { if (d) { setSelectedDate(d); setCalendarOpen(false); } }}
+                  defaultMonth={selectedDate}
+                  captionLayout="dropdown-buttons"
+                  fromYear={1946}
+                  toYear={new Date().getFullYear() + 1}
+                  initialFocus
+                />
               </div>
             )}
           </div>

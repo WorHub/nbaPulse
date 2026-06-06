@@ -20,6 +20,15 @@ function Calendar({
         month: "space-y-4",
         caption: "flex justify-center pt-1 relative items-center",
         caption_label: "text-sm font-medium",
+        caption_dropdowns: "flex items-center gap-2",
+        dropdown_month: "relative",
+        dropdown_year: "relative",
+        dropdown: cn(
+          buttonVariants({ variant: "outline" }),
+          "h-8 min-w-[5.75rem] cursor-pointer appearance-none bg-card px-2 pr-7 text-xs font-semibold text-foreground hover:bg-secondary"
+        ),
+        dropdown_icon: "ml-1 h-3.5 w-3.5 opacity-60",
+        vhidden: "sr-only",
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
