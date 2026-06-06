@@ -6,12 +6,53 @@ export function calcFantasyPoints({ pts = 0, reb = 0, ast = 0, stl = 0, blk = 0,
   return parseFloat((pts * 1 + reb * 1.2 + ast * 1.5 + stl * 3 + blk * 3 - to * 1).toFixed(1));
 }
 
+function getEasternDateParts(date) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date).reduce((acc, part) => {
+    if (part.type !== "literal") acc[part.type] = part.value;
+    return acc;
+  }, { year: "", month: "", day: "" });
+}
+
+function formatNbaLeagueDate(date) {
+  const { year, month, day } = getEasternDateParts(date);
+  return `${year}${month}${day}`;
+}
+
+function uniqueEvents(events) {
+  return Array.from(new Map((events || []).map((event) => [event.id, event])).values());
+}
+
 export async function fetchScoreboard(date) {
   const params = new URLSearchParams({ limit: "500" });
+
+  if (date && /^\d{8}$/.test(String(date))) {
+    const requestedDate = String(date);
+    const nextDate = formatEspnDate(shiftDate(parseEspnDate(requestedDate), 1));
+    params.set("dates", `${requestedDate}-${nextDate}`);
+
+    const res = await fetch(`${BASE}/scoreboard?${params.toString()}`);
+    const data = await res.json();
+    const leagueDateEvents = uniqueEvents(data.events).filter((event) => {
+      const eventDate = event.competitions?.[0]?.date || event.date;
+      return eventDate && formatNbaLeagueDate(new Date(eventDate)) === requestedDate;
+    });
+
+    return {
+      ...data,
+      events: leagueDateEvents.length ? leagueDateEvents : uniqueEvents(data.events),
+    };
+  }
+
   if (date) params.set("dates", date);
 
   const res = await fetch(`${BASE}/scoreboard?${params.toString()}`);
-  return res.json();
+  const data = await res.json();
+  return { ...data, events: uniqueEvents(data.events) };
 }
 
 function formatEspnDate(date) {
@@ -43,6 +84,7 @@ export async function fetchScoreboardRange(startDate, endDate) {
 
 export async function findNearestGameDate(date, direction = "nearest") {
   const target = date instanceof Date ? date : parseEspnDate(String(date));
+  const targetDay = formatEspnDate(target);
   const maxDays = 370;
   const chunkDays = 30;
 
@@ -53,11 +95,11 @@ export async function findNearestGameDate(date, direction = "nearest") {
       const start = shiftDate(target, step > 0 ? offset : -(offset + chunkDays));
       const end = shiftDate(target, step > 0 ? offset + chunkDays : -offset);
       const data = await fetchScoreboardRange(start, end);
-      const events = data.events || [];
-      const sortedEvents = events.sort((a, b) => (new Date(a.date).getTime() - new Date(b.date).getTime()) * step);
-      const game = sortedEvents.find((event) => (new Date(event.date).getTime() - target.getTime()) * step >= 0);
+      const events = uniqueEvents(data.events);
+      const sortedEvents = events.sort((a, b) => getEventDay(a).localeCompare(getEventDay(b)) * step);
+      const game = sortedEvents.find((event) => getEventDay(event).localeCompare(targetDay) * step >= 0);
 
-      if (game) return new Date(game.date);
+      if (game) return parseEspnDate(getEventDay(game));
     }
 
     return target;
@@ -67,14 +109,14 @@ export async function findNearestGameDate(date, direction = "nearest") {
     const start = shiftDate(target, -radius - chunkDays);
     const end = shiftDate(target, radius + chunkDays);
     const data = await fetchScoreboardRange(start, end);
-    const events = data.events || [];
+    const events = uniqueEvents(data.events);
     if (events.length) {
       const closest = events.reduce((best, event) => {
-        const eventTime = new Date(event.date).getTime();
-        const bestTime = new Date(best.date).getTime();
+        const eventTime = parseEspnDate(getEventDay(event)).getTime();
+        const bestTime = parseEspnDate(getEventDay(best)).getTime();
         return Math.abs(eventTime - target.getTime()) < Math.abs(bestTime - target.getTime()) ? event : best;
       }, events[0]);
-      return new Date(closest.date);
+      return parseEspnDate(getEventDay(closest));
     }
   }
 
@@ -82,7 +124,8 @@ export async function findNearestGameDate(date, direction = "nearest") {
 }
 
 function getEventDay(event) {
-  return formatEspnDate(new Date(event.date));
+  const eventDate = event.competitions?.[0]?.date || event.date;
+  return formatNbaLeagueDate(new Date(eventDate));
 }
 
 function isCompletedEvent(event) {
@@ -95,16 +138,26 @@ export async function findNearestCompletedGameDate(date, direction = "back") {
   const maxDays = 370;
   const chunkDays = 30;
   const step = direction === "forward" ? 1 : -1;
+  const today = new Date();
+
+  if (step > 0 && targetDay.localeCompare(formatEspnDate(today)) > 0) {
+    return target;
+  }
 
   for (let offset = 0; offset <= maxDays; offset += chunkDays + 1) {
     const start = shiftDate(target, step > 0 ? offset : -(offset + chunkDays));
-    const end = shiftDate(target, step > 0 ? offset + chunkDays : -offset);
+    const unclampedEnd = shiftDate(target, step > 0 ? offset + chunkDays : -offset);
+    const end = step > 0 && unclampedEnd > today ? today : unclampedEnd;
+
+    if (step > 0 && start > today) break;
+
     const data = await fetchScoreboardRange(start, end);
-    const events = (data.events || []).filter(isCompletedEvent);
+    const events = uniqueEvents(data.events).filter(isCompletedEvent);
     const sortedEvents = events.sort((a, b) => getEventDay(a).localeCompare(getEventDay(b)) * step);
     const game = sortedEvents.find((event) => getEventDay(event).localeCompare(targetDay) * step >= 0);
 
-    if (game) return new Date(game.date);
+    if (game) return parseEspnDate(getEventDay(game));
+    if (step > 0 && end >= today) break;
   }
 
   return target;
