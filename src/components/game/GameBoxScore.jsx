@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { calcFantasyPoints } from "@/lib/espn";
 
-export default function GameBoxScore({ boxscore }) {
+export default function GameBoxScore({ boxscore, gameId }) {
   const players = boxscore?.players || [];
   const [activeTeamIdx, setActiveTeamIdx] = useState(0);
 
@@ -83,7 +83,7 @@ export default function GameBoxScore({ boxscore }) {
                       className="border-b border-border hover:bg-secondary/20 transition-colors"
                     >
                       <td className="py-2 px-3 sticky left-0 bg-card">
-                        <Link to={`/player/${player?.id}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+                        <Link to={`/player/${player?.id}`} state={{ backTo: `/game/${gameId}`, backLabel: "Back" }} className="flex items-center gap-2 hover:text-primary transition-colors">
                           <span className="font-medium text-foreground hover:text-primary">
                             {player?.shortName || player?.displayName}
                           </span>

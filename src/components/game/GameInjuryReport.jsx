@@ -66,7 +66,7 @@ function getInjuryDetails(injury) {
     || "No details available";
 }
 
-export default function GameInjuryReport({ rosters, gameDate }) {
+export default function GameInjuryReport({ rosters, gameDate, gameId }) {
   const [activeIdx, setActiveIdx] = useState(0);
 
   const useEmbiidFallback = useMemo(() => isTomorrow(gameDate), [gameDate]);
@@ -128,7 +128,7 @@ export default function GameInjuryReport({ rosters, gameDate }) {
                   <div className="w-9 h-9 rounded-full bg-muted flex-shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <Link to={`/player/${player.id}`} className="font-semibold text-sm text-foreground hover:text-primary transition-colors">
+                  <Link to={`/player/${player.id}`} state={{ backTo: `/game/${gameId}`, backLabel: "Back" }} className="font-semibold text-sm text-foreground hover:text-primary transition-colors">
                     {getPlayerName(player)}
                   </Link>
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">

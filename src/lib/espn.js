@@ -12,6 +12,73 @@ export async function fetchScoreboard(date) {
   return res.json();
 }
 
+function formatEspnDate(date) {
+  const parsed = date instanceof Date ? date : new Date(date);
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+function parseEspnDate(dateString) {
+  const year = Number(dateString.slice(0, 4));
+  const month = Number(dateString.slice(4, 6)) - 1;
+  const day = Number(dateString.slice(6, 8));
+  return new Date(year, month, day);
+}
+
+function shiftDate(date, days) {
+  const shifted = new Date(date);
+  shifted.setDate(shifted.getDate() + days);
+  return shifted;
+}
+
+export async function fetchScoreboardRange(startDate, endDate) {
+  const dates = `${formatEspnDate(startDate)}-${formatEspnDate(endDate)}`;
+  const res = await fetch(`${BASE}/scoreboard?dates=${dates}&limit=500`);
+  return res.json();
+}
+
+export async function findNearestGameDate(date, direction = "nearest") {
+  const target = date instanceof Date ? date : parseEspnDate(String(date));
+  const maxDays = 370;
+  const chunkDays = 30;
+
+  if (direction === "back" || direction === "forward") {
+    const step = direction === "back" ? -1 : 1;
+
+    for (let offset = 0; offset <= maxDays; offset += chunkDays + 1) {
+      const start = shiftDate(target, step > 0 ? offset : -(offset + chunkDays));
+      const end = shiftDate(target, step > 0 ? offset + chunkDays : -offset);
+      const data = await fetchScoreboardRange(start, end);
+      const events = data.events || [];
+      const sortedEvents = events.sort((a, b) => (new Date(a.date).getTime() - new Date(b.date).getTime()) * step);
+      const game = sortedEvents.find((event) => (new Date(event.date).getTime() - target.getTime()) * step >= 0);
+
+      if (game) return new Date(game.date);
+    }
+
+    return target;
+  }
+
+  for (let radius = 0; radius <= maxDays; radius += chunkDays) {
+    const start = shiftDate(target, -radius - chunkDays);
+    const end = shiftDate(target, radius + chunkDays);
+    const data = await fetchScoreboardRange(start, end);
+    const events = data.events || [];
+    if (events.length) {
+      const closest = events.reduce((best, event) => {
+        const eventTime = new Date(event.date).getTime();
+        const bestTime = new Date(best.date).getTime();
+        return Math.abs(eventTime - target.getTime()) < Math.abs(bestTime - target.getTime()) ? event : best;
+      }, events[0]);
+      return new Date(closest.date);
+    }
+  }
+
+  return target;
+}
+
 export async function fetchNews() {
   const res = await fetch(`${BASE}/news`);
   return res.json();

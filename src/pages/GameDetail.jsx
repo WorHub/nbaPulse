@@ -63,20 +63,21 @@ export default function GameDetail() {
       </Link>
 
       {header && <GameHeader header={header} />}
-      {hasBoxScore && <GameBoxScore boxscore={boxscore} />}
+      {hasBoxScore && <GameBoxScore boxscore={boxscore} gameId={gameId} />}
       {teams.length > 0 && (
         <GameRecentGames teams={teams} recentGamesByTeam={recentGamesByTeam} isLoading={recentGamesLoading} />
       )}
-      {rosters.length > 0 && <GameInjuryReport rosters={rosters} gameDate={gameDate} />}
+      {rosters.length > 0 && <GameInjuryReport rosters={rosters} gameDate={gameDate} gameId={gameId} />}
       {rosters.length > 0 && (
         <GamePlayerAverages
           teams={teams}
           rosters={rosters}
           playerStats={playerStatsData?.athletes || []}
           isLoading={playerStatsLoading}
+          gameId={gameId}
         />
       )}
-      {(isPreGame || !hasBoxScore) && rosters.length > 0 && <GameRosters rosters={rosters} />}
+      {(isPreGame || !hasBoxScore) && rosters.length > 0 && <GameRosters rosters={rosters} gameId={gameId} />}
     </div>
   );
 }

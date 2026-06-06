@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchScoreboard } from "@/lib/espn";
-import { format, addDays, subDays, isAfter } from "date-fns";
+import { fetchScoreboard, findNearestGameDate } from "@/lib/espn";
+import { format, addDays, subDays, isAfter, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight, CalendarDays, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -22,6 +22,7 @@ export default function Scores() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [historicOpen, setHistoricOpen] = useState(false);
+  const [isFindingGameDay, setIsFindingGameDay] = useState(false);
   const calendarRef = useRef(null);
 
   const dateStr = format(selectedDate, "yyyyMMdd");
@@ -33,23 +34,52 @@ export default function Scores() {
 
   const games = data?.events || [];
 
-  const goBack = () => setSelectedDate((d) => {
-    const previousDate = subDays(d, 1);
-    return isAfter(ARCHIVE_START_DATE, previousDate) ? d : previousDate;
-  });
-  const goForward = () => setSelectedDate((d) => addDays(d, 1));
-  const goToday = () => setSelectedDate(new Date());
+  const moveToGameDay = async (date, direction = "nearest") => {
+    if (isAfter(ARCHIVE_START_DATE, date)) return;
+
+    setIsFindingGameDay(true);
+    try {
+      const gameDate = await findNearestGameDate(date, direction);
+      setSelectedDate(isAfter(ARCHIVE_START_DATE, gameDate) ? ARCHIVE_START_DATE : gameDate);
+    } finally {
+      setIsFindingGameDay(false);
+    }
+  };
+
+  const goBack = () => moveToGameDay(subDays(selectedDate, 1), "back");
+  const goForward = () => moveToGameDay(addDays(selectedDate, 1), "forward");
+  const goToday = () => moveToGameDay(new Date(), "nearest");
   const jumpToDate = (date) => {
-    setSelectedDate(date);
+    moveToGameDay(date, "nearest");
     setHistoricOpen(false);
   };
 
   const handleDateSelect = (date) => {
     if (date) {
-      setSelectedDate(date);
+      moveToGameDay(date, "nearest");
       setCalendarOpen(false);
     }
   };
+
+  useEffect(() => {
+    if (isLoading || error || isFindingGameDay || games.length > 0) return;
+
+    let cancelled = false;
+    setIsFindingGameDay(true);
+    findNearestGameDate(selectedDate, "nearest")
+      .then((gameDate) => {
+        if (!cancelled && !isSameDay(gameDate, selectedDate)) {
+          setSelectedDate(gameDate);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsFindingGameDay(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [error, games.length, isFindingGameDay, isLoading, selectedDate]);
 
   // Close calendar on outside click
   useEffect(() => {
@@ -73,11 +103,11 @@ export default function Scores() {
 
       {/* Date Navigation */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
-        <Button variant="outline" size="icon" onClick={goBack} disabled={!isAfter(selectedDate, ARCHIVE_START_DATE)} className="h-9 w-9">
+        <Button variant="outline" size="icon" onClick={goBack} disabled={isFindingGameDay || !isAfter(selectedDate, ARCHIVE_START_DATE)} className="h-9 w-9">
           <ChevronLeft className="w-4 h-4" />
         </Button>
-        <Button variant="outline" size="sm" onClick={goToday} className="h-9 text-xs">
-          Today
+        <Button variant="outline" size="sm" onClick={goToday} disabled={isFindingGameDay} className="h-9 text-xs">
+          {isFindingGameDay ? "Finding games…" : "Today"}
         </Button>
 
         {/* Clickable date with calendar popup */}
@@ -108,7 +138,7 @@ export default function Scores() {
           )}
         </div>
 
-        <Button variant="outline" size="icon" onClick={goForward} className="h-9 w-9">
+        <Button variant="outline" size="icon" onClick={goForward} disabled={isFindingGameDay} className="h-9 w-9">
           <ChevronRight className="w-4 h-4" />
         </Button>
 
@@ -137,16 +167,16 @@ export default function Scores() {
         </div>
       </div>
 
-      {isLoading && <LoadingSpinner text="Loading scores..." />}
+      {(isLoading || isFindingGameDay) && <LoadingSpinner text={isFindingGameDay ? "Finding next game day..." : "Loading scores..."} />}
       {error && <ErrorState message="Failed to load scores" onRetry={refetch} />}
 
-      {!isLoading && !error && games.length === 0 && (
+      {!isLoading && !isFindingGameDay && !error && games.length === 0 && (
         <div className="text-center py-20">
           <p className="text-muted-foreground text-sm">No games scheduled for this day</p>
         </div>
       )}
 
-      {!isLoading && !error && games.length > 0 && (
+      {!isLoading && !isFindingGameDay && !error && games.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {games.map((game) => (
             <ScoreCard key={game.id} game={game} />
