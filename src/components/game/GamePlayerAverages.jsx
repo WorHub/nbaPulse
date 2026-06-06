@@ -23,7 +23,7 @@ function normalizeRoster(roster) {
   return (roster?.roster || []).map((entry) => entry.athlete || entry).filter(Boolean);
 }
 
-export default function GamePlayerAverages({ teams = [], rosters = [], playerStats = [], isLoading }) {
+export default function GamePlayerAverages({ teams = [], rosters = [], playerStats = [], isLoading, gameId }) {
   const [activeIdx, setActiveIdx] = useState(0);
 
   const statsByAthlete = useMemo(() => {
@@ -97,7 +97,7 @@ export default function GamePlayerAverages({ teams = [], rosters = [], playerSta
                 return (
                   <tr key={player.id} className="border-b border-border hover:bg-secondary/30 transition-colors">
                     <td className="py-2.5 px-4 sticky left-0 bg-card">
-                      <Link to={`/player/${player.id}`} className="flex items-center gap-2.5 hover:text-primary transition-colors group">
+                      <Link to={`/player/${player.id}`} state={{ backTo: `/game/${gameId}`, backLabel: "Back" }} className="flex items-center gap-2.5 hover:text-primary transition-colors group">
                         {headshot ? (
                           <img src={headshot} alt={player.displayName || player.fullName} className="w-8 h-8 rounded-full object-cover bg-muted flex-shrink-0" />
                         ) : (

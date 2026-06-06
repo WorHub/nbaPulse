@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export default function GameRosters({ rosters }) {
+export default function GameRosters({ rosters, gameId }) {
   const [activeIdx, setActiveIdx] = useState(0);
 
   if (!rosters || rosters.length === 0) return null;
@@ -48,7 +48,7 @@ export default function GameRosters({ rosters }) {
                 <tr key={player.id} className="border-b border-border hover:bg-secondary/20 transition-colors">
                   <td className="py-2.5 px-4 text-muted-foreground font-mono text-xs">{player.jersey || "-"}</td>
                   <td className="py-2.5 px-4">
-                    <Link to={`/player/${player.id}`} className="flex items-center gap-2.5 hover:text-primary transition-colors group">
+                    <Link to={`/player/${player.id}`} state={{ backTo: `/game/${gameId}`, backLabel: "Back" }} className="flex items-center gap-2.5 hover:text-primary transition-colors group">
                       {headshot ? (
                         <img src={headshot} alt={player.displayName} className="w-7 h-7 rounded-full object-cover bg-muted flex-shrink-0" />
                       ) : (

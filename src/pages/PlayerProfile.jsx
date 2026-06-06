@@ -1,5 +1,5 @@
 import React from "react";
-import { useParams, Link } from "react-router-dom";
+import { useLocation, useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchPlayerCareerStats, fetchPlayerProfile, fetchPlayerSeasonStats } from "@/lib/espn";
 import { ArrowLeft, Activity, Flame, Shield, Sparkles, TrendingUp } from "lucide-react";
@@ -157,6 +157,9 @@ function CareerTable({ rows }) {
 
 export default function PlayerProfile() {
   const { athleteId } = useParams();
+  const location = useLocation();
+  const backTo = location.state?.backTo || "/players";
+  const backLabel = location.state?.backLabel || "All Players";
 
   const { data: profileData, isLoading: profileLoading, error: profileError, refetch: refetchProfile } = useQuery({
     queryKey: ["playerProfile", athleteId],
@@ -205,11 +208,11 @@ export default function PlayerProfile() {
   return (
     <div>
       <Link
-        to="/players"
+        to={backTo}
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
       >
         <ArrowLeft className="w-4 h-4" />
-        All Players
+        {backLabel}
       </Link>
 
       <div
