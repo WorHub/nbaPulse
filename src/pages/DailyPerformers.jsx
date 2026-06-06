@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchScoreboard, calcFantasyPoints } from "@/lib/espn";
-import { format, subDays, addDays, isAfter } from "date-fns";
+import { fetchScoreboard, calcFantasyPoints, findNearestCompletedGameDate } from "@/lib/espn";
+import { format, subDays, addDays, isAfter, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight, CalendarDays, Star, Trophy, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -106,7 +106,9 @@ function extractDetailedFromBoxscore(game) {
 export default function DailyPerformers() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [isFindingGameDay, setIsFindingGameDay] = useState(false);
   const calendarRef = useRef(null);
+  const fallbackDateRef = useRef(null);
 
   const dateStr = format(selectedDate, "yyyyMMdd");
 
@@ -115,6 +117,30 @@ export default function DailyPerformers() {
     queryFn: () => fetchScoreboard(dateStr),
   });
 
+  const games = data?.events || [];
+
+  const moveToCompletedGameDay = async (date, direction = "back") => {
+    if (isAfter(ARCHIVE_START_DATE, date)) return;
+
+    setIsFindingGameDay(true);
+    try {
+      const gameDate = await findNearestCompletedGameDate(date, direction);
+      setSelectedDate(isAfter(ARCHIVE_START_DATE, gameDate) ? ARCHIVE_START_DATE : gameDate);
+    } finally {
+      setIsFindingGameDay(false);
+    }
+  };
+
+  const goBack = () => moveToCompletedGameDay(subDays(selectedDate, 1), "back");
+  const goForward = () => moveToCompletedGameDay(addDays(selectedDate, 1), "forward");
+
+  const handleDateSelect = (date) => {
+    if (date) {
+      moveToCompletedGameDay(date, "back");
+      setCalendarOpen(false);
+    }
+  };
+
   useEffect(() => {
     const handler = (e) => {
       if (calendarRef.current && !calendarRef.current.contains(e.target)) setCalendarOpen(false);
@@ -122,8 +148,6 @@ export default function DailyPerformers() {
     if (calendarOpen) document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [calendarOpen]);
-
-  const games = data?.events || [];
 
   // Extract all performers from leaders across games
   const performerMap = {};
@@ -173,6 +197,27 @@ export default function DailyPerformers() {
   const hasData = performers.length > 0;
   const topPerformer = performers[0];
 
+  useEffect(() => {
+    if (isLoading || error || isFindingGameDay || hasData || fallbackDateRef.current === dateStr) return;
+
+    let cancelled = false;
+    fallbackDateRef.current = dateStr;
+    setIsFindingGameDay(true);
+    findNearestCompletedGameDate(selectedDate, "back")
+      .then((gameDate) => {
+        if (!cancelled && !isSameDay(gameDate, selectedDate)) {
+          setSelectedDate(gameDate);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsFindingGameDay(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dateStr, error, hasData, isFindingGameDay, isLoading, selectedDate]);
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
@@ -185,11 +230,8 @@ export default function DailyPerformers() {
             variant="outline"
             size="icon"
             className="h-9 w-9"
-            onClick={() => setSelectedDate((d) => {
-              const previousDate = subDays(d, 1);
-              return isAfter(ARCHIVE_START_DATE, previousDate) ? d : previousDate;
-            })}
-            disabled={!isAfter(selectedDate, ARCHIVE_START_DATE)}
+            onClick={goBack}
+            disabled={isFindingGameDay || !isAfter(selectedDate, ARCHIVE_START_DATE)}
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
@@ -206,7 +248,7 @@ export default function DailyPerformers() {
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={(d) => { if (d) { setSelectedDate(d); setCalendarOpen(false); } }}
+                  onSelect={handleDateSelect}
                   defaultMonth={selectedDate}
                   captionLayout="dropdown-buttons"
                   fromYear={1996}
@@ -217,20 +259,20 @@ export default function DailyPerformers() {
               </div>
             )}
           </div>
-          <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setSelectedDate(d => addDays(d, 1))}>
+          <Button variant="outline" size="icon" className="h-9 w-9" onClick={goForward} disabled={isFindingGameDay}>
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
-      {isLoading && <LoadingSpinner text="Loading performers..." />}
+      {(isLoading || isFindingGameDay) && <LoadingSpinner text={isFindingGameDay ? "Finding completed game day..." : "Loading performers..."} />}
       {error && <ErrorState message="Failed to load data" onRetry={refetch} />}
 
-      {!isLoading && !error && !hasData && (
+      {!isLoading && !isFindingGameDay && !error && !hasData && (
         <div className="text-center py-20 text-muted-foreground text-sm">No completed games on this date</div>
       )}
 
-      {!isLoading && !error && hasData && (
+      {!isLoading && !isFindingGameDay && !error && hasData && (
         <>
           {/* Top performer spotlight */}
           {topPerformer && (

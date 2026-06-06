@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchScoreboard, findNearestGameDate } from "@/lib/espn";
+import { fetchScoreboard, findNearestGameDate, findNearestCompletedGameDate } from "@/lib/espn";
 import { format, addDays, subDays, isAfter, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight, CalendarDays, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ export default function Scores() {
   const [historicOpen, setHistoricOpen] = useState(false);
   const [isFindingGameDay, setIsFindingGameDay] = useState(false);
   const calendarRef = useRef(null);
+  const fallbackDateRef = useRef(null);
 
   const dateStr = format(selectedDate, "yyyyMMdd");
 
@@ -62,11 +63,12 @@ export default function Scores() {
   };
 
   useEffect(() => {
-    if (isLoading || error || isFindingGameDay || games.length > 0) return;
+    if (isLoading || error || isFindingGameDay || games.length > 0 || fallbackDateRef.current === dateStr) return;
 
     let cancelled = false;
+    fallbackDateRef.current = dateStr;
     setIsFindingGameDay(true);
-    findNearestGameDate(selectedDate, "nearest")
+    findNearestCompletedGameDate(selectedDate, "back")
       .then((gameDate) => {
         if (!cancelled && !isSameDay(gameDate, selectedDate)) {
           setSelectedDate(gameDate);
@@ -79,7 +81,7 @@ export default function Scores() {
     return () => {
       cancelled = true;
     };
-  }, [error, games.length, isFindingGameDay, isLoading, selectedDate]);
+  }, [dateStr, error, games.length, isFindingGameDay, isLoading, selectedDate]);
 
   // Close calendar on outside click
   useEffect(() => {
@@ -167,7 +169,7 @@ export default function Scores() {
         </div>
       </div>
 
-      {(isLoading || isFindingGameDay) && <LoadingSpinner text={isFindingGameDay ? "Finding next game day..." : "Loading scores..."} />}
+      {(isLoading || isFindingGameDay) && <LoadingSpinner text={isFindingGameDay ? "Finding recent completed game..." : "Loading scores..."} />}
       {error && <ErrorState message="Failed to load scores" onRetry={refetch} />}
 
       {!isLoading && !isFindingGameDay && !error && games.length === 0 && (

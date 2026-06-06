@@ -79,6 +79,35 @@ export async function findNearestGameDate(date, direction = "nearest") {
   return target;
 }
 
+function getEventDay(event) {
+  return formatEspnDate(new Date(event.date));
+}
+
+function isCompletedEvent(event) {
+  return Boolean(event.status?.type?.completed || event.competitions?.[0]?.status?.type?.completed);
+}
+
+export async function findNearestCompletedGameDate(date, direction = "back") {
+  const target = date instanceof Date ? date : parseEspnDate(String(date));
+  const targetDay = formatEspnDate(target);
+  const maxDays = 370;
+  const chunkDays = 30;
+  const step = direction === "forward" ? 1 : -1;
+
+  for (let offset = 0; offset <= maxDays; offset += chunkDays + 1) {
+    const start = shiftDate(target, step > 0 ? offset : -(offset + chunkDays));
+    const end = shiftDate(target, step > 0 ? offset + chunkDays : -offset);
+    const data = await fetchScoreboardRange(start, end);
+    const events = (data.events || []).filter(isCompletedEvent);
+    const sortedEvents = events.sort((a, b) => getEventDay(a).localeCompare(getEventDay(b)) * step);
+    const game = sortedEvents.find((event) => getEventDay(event).localeCompare(targetDay) * step >= 0);
+
+    if (game) return new Date(game.date);
+  }
+
+  return target;
+}
+
 export async function fetchNews() {
   const res = await fetch(`${BASE}/news`);
   return res.json();
