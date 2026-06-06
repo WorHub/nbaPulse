@@ -28,17 +28,17 @@ const themeOptions = [
     swatches: ["bg-white", "bg-orange-500"],
   },
   {
-    value: "team",
-    label: "Team Heat",
-    description: "Miami Heat-inspired red, black & gold",
+    value: "nba",
+    label: "NBA theme",
+    description: "League-logo blue, red & white",
     icon: CircleDot,
-    swatches: ["bg-red-800", "bg-zinc-950", "bg-yellow-500"],
+    swatches: ["bg-blue-700", "bg-red-600", "bg-white"],
   },
 ];
 
 export default function SettingsMenu() {
   const { theme, setTheme } = useTheme();
-  const currentTheme = theme || "team";
+  const currentTheme = theme || "nba";
 
   return (
     <DropdownMenu>
