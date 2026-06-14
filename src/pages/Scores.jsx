@@ -63,7 +63,7 @@ export default function Scores() {
 
   const goBack = () => moveToGameDay(subDays(selectedDate, 1), "back");
   const goForward = () => moveToGameDay(addDays(selectedDate, 1), "forward");
-  const goToday = () => moveToGameDay(new Date(), "back", true);
+  const goToday = () => moveToGameDay(new Date(), "back");
   const jumpToDate = (date) => {
     moveToGameDay(date, "nearest");
     setHistoricOpen(false);
@@ -77,7 +77,7 @@ export default function Scores() {
   };
 
   useEffect(() => {
-    moveToGameDay(new Date(), "back", true);
+    moveToGameDay(new Date(), "back");
   }, [moveToGameDay]);
 
   useEffect(() => {
@@ -190,7 +190,7 @@ export default function Scores() {
         </div>
       </div>
 
-      {(isLoading || isFindingGameDay) && <LoadingSpinner text={isFindingGameDay ? "Finding recent completed game..." : "Loading scores..."} />}
+      {(isLoading || isFindingGameDay) && <LoadingSpinner text={isFindingGameDay ? "Finding games..." : "Loading scores..."} />}
       {error && <ErrorState message="Failed to load scores" onRetry={refetch} />}
 
       {!isLoading && !isFindingGameDay && !error && games.length === 0 && (
