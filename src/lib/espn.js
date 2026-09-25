@@ -183,9 +183,29 @@ export async function fetchStandings() {
   return res.json();
 }
 
-export async function fetchGameSummary(gameId) {
-  const res = await fetch(`${BASE}/summary?event=${gameId}`);
-  return res.json();
+/**
+ * @param {string} gameId
+ * @param {{ signal?: AbortSignal, timeout?: number }} [options]
+ */
+export async function fetchGameSummary(gameId, { signal, timeout = 15000 } = {}) {
+  const controller = new AbortController();
+  const abortRequest = () => controller.abort();
+  const timeoutId = setTimeout(abortRequest, timeout);
+
+  signal?.addEventListener("abort", abortRequest, { once: true });
+
+  try {
+    const res = await fetch(`${BASE}/summary?event=${gameId}`, { signal: controller.signal });
+
+    if (!res.ok) {
+      throw new Error(`Game summary request failed with status ${res.status}`);
+    }
+
+    return await res.json();
+  } finally {
+    clearTimeout(timeoutId);
+    signal?.removeEventListener("abort", abortRequest);
+  }
 }
 
 function toEspnDate(date) {

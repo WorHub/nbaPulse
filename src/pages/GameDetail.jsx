@@ -23,7 +23,8 @@ export default function GameDetail() {
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["game", gameId],
-    queryFn: () => fetchGameSummary(gameId),
+    queryFn: ({ signal }) => fetchGameSummary(gameId, { signal }),
+    retry: (failureCount, requestError) => requestError.name !== "AbortError" && failureCount < 1,
   });
 
   const header = data?.header;
@@ -47,7 +48,12 @@ export default function GameDetail() {
   });
 
   if (isLoading) return <LoadingSpinner text="Loading game..." />;
-  if (error) return <ErrorState message="Failed to load game" onRetry={refetch} />;
+  if (error) {
+    const message = error.name === "AbortError"
+      ? "The game is taking too long to load. Please try again."
+      : "Failed to load game";
+    return <ErrorState message={message} onRetry={refetch} />;
+  }
 
   const gameState = header?.competitions?.[0]?.status?.type?.state;
   const isPreGame = gameState === "pre";
