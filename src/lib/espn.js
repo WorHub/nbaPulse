@@ -6,6 +6,29 @@ export function calcFantasyPoints({ pts = 0, reb = 0, ast = 0, stl = 0, blk = 0,
   return parseFloat((pts * 1 + reb * 1.2 + ast * 1.5 + stl * 3 + blk * 3 - to * 1).toFixed(1));
 }
 
+const REQUEST_TIMEOUT_MS = 12000;
+
+async function fetchJson(url, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(new DOMException("Request timed out", "TimeoutError")), REQUEST_TIMEOUT_MS);
+  const abortFromCaller = () => controller.abort(options.signal?.reason);
+  options.signal?.addEventListener("abort", abortFromCaller, { once: true });
+
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    if (!response.ok) throw new Error(`ESPN request failed (${response.status})`);
+    return await response.json();
+  } catch (error) {
+    if (controller.signal.aborted && !options.signal?.aborted) {
+      throw new Error("The NBA data service took too long to respond. Please try again.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    options.signal?.removeEventListener("abort", abortFromCaller);
+  }
+}
+
 function getEasternDateParts(date) {
   return new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
@@ -27,31 +50,25 @@ function uniqueEvents(events) {
   return Array.from(new Map((events || []).map((event) => [event.id, event])).values());
 }
 
-export async function fetchScoreboard(date) {
+export async function fetchScoreboard(date, options = {}) {
   const params = new URLSearchParams({ limit: "500" });
 
   if (date && /^\d{8}$/.test(String(date))) {
     const requestedDate = String(date);
-    const nextDate = formatEspnDate(shiftDate(parseEspnDate(requestedDate), 1));
-    params.set("dates", `${requestedDate}-${nextDate}`);
+    params.set("dates", requestedDate);
 
-    const res = await fetch(`${BASE}/scoreboard?${params.toString()}`);
-    const data = await res.json();
-    const leagueDateEvents = uniqueEvents(data.events).filter((event) => {
-      const eventDate = event.competitions?.[0]?.date || event.date;
-      return eventDate && formatNbaLeagueDate(new Date(eventDate)) === requestedDate;
-    });
+    const data = await fetchJson(`${BASE}/scoreboard?${params.toString()}`, options);
+    const leagueDateEvents = uniqueEvents(data.events).filter((event) => getEventDay(event) === requestedDate);
 
     return {
       ...data,
-      events: leagueDateEvents.length ? leagueDateEvents : uniqueEvents(data.events),
+      events: leagueDateEvents,
     };
   }
 
   if (date) params.set("dates", date);
 
-  const res = await fetch(`${BASE}/scoreboard?${params.toString()}`);
-  const data = await res.json();
+  const data = await fetchJson(`${BASE}/scoreboard?${params.toString()}`, options);
   return { ...data, events: uniqueEvents(data.events) };
 }
 
@@ -183,9 +200,8 @@ export async function fetchStandings() {
   return res.json();
 }
 
-export async function fetchGameSummary(gameId) {
-  const res = await fetch(`${BASE}/summary?event=${gameId}`);
-  return res.json();
+export async function fetchGameSummary(gameId, options = {}) {
+  return fetchJson(`${BASE}/summary?event=${gameId}`, options);
 }
 
 function toEspnDate(date) {
@@ -197,7 +213,7 @@ function toEspnDate(date) {
 }
 
 export async function fetchRecentGamesForTeams(options = {}) {
-  const { teamIds = [], beforeDate, limit = 5 } = options;
+  const { teamIds = [], beforeDate, limit = 5, signal } = options;
   if (!teamIds.length) return {};
 
   const targetDate = beforeDate ? new Date(beforeDate) : new Date();
@@ -205,8 +221,7 @@ export async function fetchRecentGamesForTeams(options = {}) {
   startDate.setDate(startDate.getDate() - 150);
 
   const dates = `${toEspnDate(startDate)}-${toEspnDate(targetDate)}`;
-  const res = await fetch(`${BASE}/scoreboard?dates=${dates}&limit=500`);
-  const data = await res.json();
+  const data = await fetchJson(`${BASE}/scoreboard?dates=${dates}&limit=500`, { signal });
   const targetTime = targetDate.getTime();
 
   return teamIds.reduce((acc, teamId) => {

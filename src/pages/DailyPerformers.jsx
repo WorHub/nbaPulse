@@ -1,17 +1,15 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchScoreboard, calcFantasyPoints, findNearestCompletedGameDate } from "@/lib/espn";
-import { format, subDays, addDays, isAfter, isSameDay } from "date-fns";
-import { ChevronLeft, ChevronRight, CalendarDays, Star, Trophy, Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import React from "react";
+import { calcFantasyPoints } from "@/lib/espn";
+import { format } from "date-fns";
+import { Star, Trophy, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
+import GameDateControls from "@/components/scores/GameDateControls";
+import { useScoreboard } from "@/hooks/use-scoreboard";
 
 // Box score stats order: MIN PTS FG 3PT FT REB AST TO STL BLK OREB DREB PF +/-
 const IDX = { MIN: 0, PTS: 1, FG: 2, "3PT": 3, FT: 4, REB: 5, AST: 6, TO: 7, STL: 8, BLK: 9, OREB: 10, DREB: 11, PF: 12, PM: 13 };
-const ARCHIVE_START_DATE = new Date(1996, 0, 1);
 
 function parseStat(statsArr, key) {
   const val = statsArr?.[IDX[key]];
@@ -104,67 +102,7 @@ function extractDetailedFromBoxscore(game) {
 }
 
 export default function DailyPerformers() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [isFindingGameDay, setIsFindingGameDay] = useState(true);
-  const calendarRef = useRef(null);
-  const fallbackDateRef = useRef(null);
-  const gameDayRequestRef = useRef(0);
-
-  const dateStr = format(selectedDate, "yyyyMMdd");
-
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["scoreboard-daily", dateStr],
-    queryFn: () => fetchScoreboard(dateStr),
-  });
-
-  const games = data?.events || [];
-
-  const moveToCompletedGameDay = useCallback(async (date, direction = "back") => {
-    if (isAfter(ARCHIVE_START_DATE, date)) return;
-
-    const requestId = gameDayRequestRef.current + 1;
-    gameDayRequestRef.current = requestId;
-    setIsFindingGameDay(true);
-
-    try {
-      const gameDate = await findNearestCompletedGameDate(date, direction);
-
-      if (gameDayRequestRef.current === requestId) {
-        setSelectedDate(isAfter(ARCHIVE_START_DATE, gameDate) ? ARCHIVE_START_DATE : gameDate);
-      }
-    } catch {
-      if (gameDayRequestRef.current === requestId) {
-        setSelectedDate(date);
-      }
-    } finally {
-      if (gameDayRequestRef.current === requestId) {
-        setIsFindingGameDay(false);
-      }
-    }
-  }, []);
-
-  const goBack = () => moveToCompletedGameDay(subDays(selectedDate, 1), "back");
-  const goForward = () => moveToCompletedGameDay(addDays(selectedDate, 1), "forward");
-
-  const handleDateSelect = (date) => {
-    if (date) {
-      moveToCompletedGameDay(date, "back");
-      setCalendarOpen(false);
-    }
-  };
-
-  useEffect(() => {
-    moveToCompletedGameDay(new Date(), "back");
-  }, [moveToCompletedGameDay]);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (calendarRef.current && !calendarRef.current.contains(e.target)) setCalendarOpen(false);
-    };
-    if (calendarOpen) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [calendarOpen]);
+  const { selectedDate, games, selectDate, goPrevious, goNext, goToday, isLoading, error, refetch } = useScoreboard();
 
   // Extract all performers from leaders across games
   const performerMap = {};
@@ -214,30 +152,6 @@ export default function DailyPerformers() {
   const hasData = performers.length > 0;
   const topPerformer = performers[0];
 
-  useEffect(() => {
-    if (isLoading || error || isFindingGameDay || hasData || fallbackDateRef.current === dateStr) return;
-
-    let cancelled = false;
-    fallbackDateRef.current = dateStr;
-    setIsFindingGameDay(true);
-    const requestId = gameDayRequestRef.current + 1;
-    gameDayRequestRef.current = requestId;
-
-    findNearestCompletedGameDate(selectedDate, "back")
-      .then((gameDate) => {
-        if (!cancelled && gameDayRequestRef.current === requestId && !isSameDay(gameDate, selectedDate)) {
-          setSelectedDate(gameDate);
-        }
-      })
-      .finally(() => {
-        if (!cancelled && gameDayRequestRef.current === requestId) setIsFindingGameDay(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dateStr, error, hasData, isFindingGameDay, isLoading, selectedDate]);
-
   return (
     <div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
@@ -245,55 +159,17 @@ export default function DailyPerformers() {
           <h1 className="text-2xl font-bold text-foreground">Daily Performers</h1>
           <p className="text-sm text-muted-foreground mt-1">Top fantasy performers ranked by FPTS</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-9 w-9"
-            onClick={goBack}
-            disabled={isFindingGameDay || !isAfter(selectedDate, ARCHIVE_START_DATE)}
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <div className="relative" ref={calendarRef}>
-            <button
-              onClick={() => setCalendarOpen(o => !o)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-lg text-sm font-medium text-foreground hover:bg-secondary/80 transition-colors"
-            >
-              <CalendarDays className="w-4 h-4 text-primary" />
-              {format(selectedDate, "MMM d, yyyy")}
-            </button>
-            {calendarOpen && (
-              <div className="absolute top-full right-0 mt-2 z-50 bg-card border border-border rounded-xl shadow-xl p-2">
-                <Calendar
-                  key={dateStr}
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={handleDateSelect}
-                  defaultMonth={selectedDate}
-                  captionLayout="dropdown-buttons"
-                  fromYear={1996}
-                  toYear={new Date().getFullYear() + 1}
-                  disabled={{ before: ARCHIVE_START_DATE }}
-                  initialFocus
-                />
-              </div>
-            )}
-          </div>
-          <Button variant="outline" size="icon" className="h-9 w-9" onClick={goForward} disabled={isFindingGameDay}>
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
+        <GameDateControls selectedDate={selectedDate} onSelect={selectDate} onPrevious={goPrevious} onNext={goNext} onToday={goToday} align="right" />
       </div>
 
-      {(isLoading || isFindingGameDay) && <LoadingSpinner text={isFindingGameDay ? "Finding completed game day..." : "Loading performers..."} />}
+      {isLoading && <LoadingSpinner text="Loading performers..." />}
       {error && <ErrorState message="Failed to load data" onRetry={refetch} />}
 
-      {!isLoading && !isFindingGameDay && !error && !hasData && (
+      {!isLoading && !error && !hasData && (
         <div className="text-center py-20 text-muted-foreground text-sm">No completed games on this date</div>
       )}
 
-      {!isLoading && !isFindingGameDay && !error && hasData && (
+      {!isLoading && !error && hasData && (
         <>
           {/* Top performer spotlight */}
           {topPerformer && (

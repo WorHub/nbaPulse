@@ -1,209 +1,100 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchScoreboard, findNearestGameDate, findNearestCompletedGameDate } from "@/lib/espn";
-import { format, addDays, subDays, isAfter, isSameDay } from "date-fns";
-import { ChevronLeft, ChevronRight, CalendarDays, RotateCcw } from "lucide-react";
+import React from "react";
+import { format } from "date-fns";
+import { Activity, CalendarX2, Radio, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import GameDateControls from "@/components/scores/GameDateControls";
 import ScoreCard from "@/components/scores/ScoreCard";
-import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
+import { useScoreboard } from "@/hooks/use-scoreboard";
 
-const ARCHIVE_START_DATE = new Date(1996, 0, 1);
-
-const HISTORIC_DATES = [
-  { label: "Opening night throwback", date: new Date(1996, 10, 1), note: "Bulls vs Celtics" },
-  { label: "Kobe 81", date: new Date(2006, 0, 22), note: "Lakers vs Raptors" },
-  { label: "2016 Finals G7", date: new Date(2016, 5, 19), note: "Cavaliers vs Warriors" },
-  { label: "2024 Finals close", date: new Date(2024, 5, 17), note: "Celtics title night" },
-];
+function ScoreboardSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3" aria-label="Loading games">
+      {[0, 1, 2, 3, 4, 5].map((item) => (
+        <div key={item} className="h-44 animate-pulse rounded-xl border border-border bg-card p-4">
+          <div className="mb-6 h-5 w-20 rounded-full bg-muted" />
+          <div className="space-y-5">
+            <div className="h-7 rounded-lg bg-muted" />
+            <div className="h-7 rounded-lg bg-muted" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Scores() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [historicOpen, setHistoricOpen] = useState(false);
-  const [isFindingGameDay, setIsFindingGameDay] = useState(true);
-  const calendarRef = useRef(null);
-  const fallbackDateRef = useRef(null);
-  const gameDayRequestRef = useRef(0);
+  const {
+    selectedDate,
+    games,
+    selectDate,
+    goPrevious,
+    goNext,
+    goToday,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  } = useScoreboard();
 
-  const dateStr = format(selectedDate, "yyyyMMdd");
-
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["scoreboard", dateStr],
-    queryFn: () => fetchScoreboard(dateStr),
-  });
-
-  const games = data?.events || [];
-
-  const moveToGameDay = useCallback(async (date, direction = "nearest", completedOnly = false) => {
-    if (isAfter(ARCHIVE_START_DATE, date)) return;
-
-    const requestId = gameDayRequestRef.current + 1;
-    gameDayRequestRef.current = requestId;
-    setIsFindingGameDay(true);
-
-    try {
-      const finder = completedOnly ? findNearestCompletedGameDate : findNearestGameDate;
-      const gameDate = await finder(date, direction);
-
-      if (gameDayRequestRef.current === requestId) {
-        setSelectedDate(isAfter(ARCHIVE_START_DATE, gameDate) ? ARCHIVE_START_DATE : gameDate);
-      }
-    } catch {
-      if (gameDayRequestRef.current === requestId) {
-        setSelectedDate(date);
-      }
-    } finally {
-      if (gameDayRequestRef.current === requestId) {
-        setIsFindingGameDay(false);
-      }
-    }
-  }, []);
-
-  const goBack = () => moveToGameDay(subDays(selectedDate, 1), "back");
-  const goForward = () => moveToGameDay(addDays(selectedDate, 1), "forward");
-  const goToday = () => moveToGameDay(new Date(), "back");
-  const jumpToDate = (date) => {
-    moveToGameDay(date, "nearest");
-    setHistoricOpen(false);
-  };
-
-  const handleDateSelect = (date) => {
-    if (date) {
-      moveToGameDay(date, "nearest");
-      setCalendarOpen(false);
-    }
-  };
-
-  useEffect(() => {
-    moveToGameDay(new Date(), "back");
-  }, [moveToGameDay]);
-
-  useEffect(() => {
-    if (isLoading || error || isFindingGameDay || games.length > 0 || fallbackDateRef.current === dateStr) return;
-
-    let cancelled = false;
-    fallbackDateRef.current = dateStr;
-    setIsFindingGameDay(true);
-    const requestId = gameDayRequestRef.current + 1;
-    gameDayRequestRef.current = requestId;
-
-    findNearestCompletedGameDate(selectedDate, "back")
-      .then((gameDate) => {
-        if (!cancelled && gameDayRequestRef.current === requestId && !isSameDay(gameDate, selectedDate)) {
-          setSelectedDate(gameDate);
-        }
-      })
-      .finally(() => {
-        if (!cancelled && gameDayRequestRef.current === requestId) setIsFindingGameDay(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dateStr, error, games.length, isFindingGameDay, isLoading, selectedDate]);
-
-  // Close calendar on outside click
-  useEffect(() => {
-    const handler = (e) => {
-      if (calendarRef.current && !calendarRef.current.contains(e.target)) {
-        setCalendarOpen(false);
-      }
-    };
-    if (calendarOpen) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [calendarOpen]);
+  const liveCount = games.filter((game) => game.status?.type?.state === "in").length;
+  const finalCount = games.filter((game) => game.status?.type?.completed).length;
+  const scheduledCount = games.length - liveCount - finalCount;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8 gap-4">
+      <div className="mb-6 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Scores</h1>
-          <p className="text-sm text-muted-foreground mt-1">Live, recent, and historic NBA game results</p>
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-primary">
+            <Activity className="h-4 w-4" /> NBA scoreboard
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-foreground">Games</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Every matchup, live status, and final score—one day at a time.</p>
         </div>
+        <GameDateControls
+          selectedDate={selectedDate}
+          onSelect={selectDate}
+          onPrevious={goPrevious}
+          onNext={goNext}
+          onToday={goToday}
+          align="right"
+        />
       </div>
 
-      {/* Date Navigation */}
-      <div className="flex items-center gap-2 mb-6 flex-wrap">
-        <Button variant="outline" size="icon" onClick={goBack} disabled={isFindingGameDay || !isAfter(selectedDate, ARCHIVE_START_DATE)} className="h-9 w-9">
-          <ChevronLeft className="w-4 h-4" />
-        </Button>
-        <Button variant="outline" size="sm" onClick={goToday} disabled={isFindingGameDay} className="h-9 text-xs">
-          {isFindingGameDay ? "Finding games…" : "Today"}
-        </Button>
-
-        {/* Clickable date with calendar popup */}
-        <div className="relative" ref={calendarRef}>
-          <button
-            onClick={() => setCalendarOpen((o) => !o)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-secondary rounded-lg text-sm font-medium text-foreground hover:bg-secondary/80 transition-colors"
-          >
-            <CalendarDays className="w-4 h-4 text-primary" />
-            {format(selectedDate, "EEEE, MMM d, yyyy")}
-          </button>
-
-          {calendarOpen && (
-            <div className="absolute top-full left-0 mt-2 z-50 bg-card border border-border rounded-xl shadow-xl p-2">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateSelect}
-                defaultMonth={selectedDate}
-                captionLayout="dropdown-buttons"
-                fromYear={1996}
-                toYear={new Date().getFullYear() + 1}
-                disabled={{ before: ARCHIVE_START_DATE }}
-                initialFocus
-                className="rounded-lg"
-              />
-            </div>
-          )}
-        </div>
-
-        <Button variant="outline" size="icon" onClick={goForward} disabled={isFindingGameDay} className="h-9 w-9">
-          <ChevronRight className="w-4 h-4" />
-        </Button>
-
-        <div className="relative">
-          <Button variant="outline" size="sm" onClick={() => setHistoricOpen((open) => !open)} className="h-9 text-xs gap-2">
-            <RotateCcw className="w-4 h-4" />
-            Historic games
-          </Button>
-          {historicOpen && (
-            <div className="absolute top-full left-0 mt-2 z-40 w-72 bg-card border border-border rounded-xl shadow-xl p-2">
-              {HISTORIC_DATES.map((item) => (
-                <button
-                  key={item.label}
-                  onClick={() => jumpToDate(item.date)}
-                  className="w-full text-left rounded-lg px-3 py-2 hover:bg-secondary transition-colors"
-                >
-                  <span className="block text-sm font-semibold text-foreground">{item.label}</span>
-                  <span className="block text-xs text-muted-foreground">{format(item.date, "MMM d, yyyy")} · {item.note}</span>
-                </button>
-              ))}
-              <div className="border-t border-border mt-2 pt-2 px-3 pb-1 text-[11px] leading-5 text-muted-foreground">
-                Pick a featured date or use the calendar month and year menus to jump anywhere quickly.
-              </div>
-            </div>
-          )}
-        </div>
+      <div className="mb-5 flex min-h-10 items-center gap-2 rounded-xl border border-border bg-card/60 px-4 py-2 text-xs text-muted-foreground">
+        <span className="font-semibold text-foreground">{format(selectedDate, "EEEE, MMMM d")}</span>
+        {!isLoading && !error && games.length > 0 && (
+          <>
+            <span>·</span>
+            <span>{games.length} {games.length === 1 ? "game" : "games"}</span>
+            {liveCount > 0 && <span className="inline-flex items-center gap-1 font-semibold text-red-400"><Radio className="h-3 w-3" />{liveCount} live</span>}
+            {scheduledCount > 0 && <span>· {scheduledCount} upcoming</span>}
+            {finalCount > 0 && <span>· {finalCount} final</span>}
+          </>
+        )}
+        {isFetching && !isLoading && <RefreshCw className="ml-auto h-3.5 w-3.5 animate-spin text-primary" aria-label="Refreshing scores" />}
       </div>
 
-      {(isLoading || isFindingGameDay) && <LoadingSpinner text={isFindingGameDay ? "Finding games..." : "Loading scores..."} />}
-      {error && <ErrorState message="Failed to load scores" onRetry={refetch} />}
+      {isLoading && <ScoreboardSkeleton />}
+      {!isLoading && error && (
+        <ErrorState message={error.message || "The scoreboard could not be loaded."} onRetry={refetch} />
+      )}
 
-      {!isLoading && !isFindingGameDay && !error && games.length === 0 && (
-        <div className="text-center py-20">
-          <p className="text-muted-foreground text-sm">No games scheduled for this day</p>
+      {!isLoading && !error && games.length === 0 && (
+        <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 px-6 text-center">
+          <div className="mb-4 rounded-full bg-secondary p-4"><CalendarX2 className="h-7 w-7 text-primary" /></div>
+          <h2 className="text-lg font-bold text-foreground">No games on this date</h2>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">The scoreboard loaded successfully, but the NBA has no games scheduled for {format(selectedDate, "MMMM d, yyyy")}.</p>
+          <div className="mt-5 flex gap-2">
+            <Button variant="outline" size="sm" onClick={goPrevious}>Previous day</Button>
+            <Button size="sm" onClick={goToday}>Back to today</Button>
+          </div>
         </div>
       )}
 
-      {!isLoading && !isFindingGameDay && !error && games.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {games.map((game) => (
-            <ScoreCard key={game.id} game={game} />
-          ))}
+      {!isLoading && !error && games.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {games.map((game) => <ScoreCard key={game.id} game={game} />)}
         </div>
       )}
     </div>
