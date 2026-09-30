@@ -23,7 +23,7 @@ export default function GameDetail() {
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["game", gameId],
-    queryFn: () => fetchGameSummary(gameId),
+    queryFn: ({ signal }) => fetchGameSummary(gameId, { signal }),
   });
 
   const header = data?.header;
@@ -36,7 +36,7 @@ export default function GameDetail() {
 
   const { data: recentGamesByTeam = {}, isLoading: recentGamesLoading } = useQuery({
     queryKey: ["gameRecentGames", gameId, teamIds.join(","), gameDate],
-    queryFn: () => fetchRecentGamesForTeams({ teamIds, beforeDate: gameDate, limit: 5 }),
+    queryFn: ({ signal }) => fetchRecentGamesForTeams({ teamIds, beforeDate: gameDate, limit: 5, signal }),
     enabled: teamIds.length > 0 && Boolean(gameDate),
   });
 
