@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { format, isSameDay } from "date-fns";
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Clock3, History, Loader2 } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -28,8 +28,6 @@ export default function GameDateControls({
   onPrevious,
   onNext,
   onToday,
-  onRecent,
-  isFindingRecent = false,
   showQuickJumps = false,
   align = "left",
 }) {
@@ -82,10 +80,6 @@ export default function GameDateControls({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm" onClick={onRecent} disabled={isFindingRecent} className="h-9 gap-2">
-            {isFindingRecent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock3 className="h-4 w-4 text-primary" />}
-            {isFindingRecent ? "Finding games…" : "Recent games"}
-          </Button>
         </>
       )}
       <Button variant="outline" size="icon" onClick={onPrevious} disabled={selectedDate <= ARCHIVE_START_DATE} className="h-9 w-9" aria-label="Previous day">

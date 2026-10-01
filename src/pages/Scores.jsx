@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { format } from "date-fns";
 import { Activity, CalendarX2, Radio, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,6 @@ import GameDateControls from "@/components/scores/GameDateControls";
 import ScoreCard from "@/components/scores/ScoreCard";
 import ErrorState from "@/components/shared/ErrorState";
 import { useScoreboard } from "@/hooks/use-scoreboard";
-import { findNearestCompletedGameDate } from "@/lib/espn";
-import { useToast } from "@/components/ui/use-toast";
 
 function ScoreboardSkeleton() {
   return (
@@ -26,8 +24,6 @@ function ScoreboardSkeleton() {
 }
 
 export default function Scores() {
-  const [isFindingRecent, setIsFindingRecent] = useState(false);
-  const { toast } = useToast();
   const {
     selectedDate,
     games,
@@ -45,22 +41,6 @@ export default function Scores() {
   const finalCount = games.filter((game) => game.status?.type?.completed).length;
   const scheduledCount = games.length - liveCount - finalCount;
 
-  const goToRecentGames = async () => {
-    setIsFindingRecent(true);
-    try {
-      const recentDate = await findNearestCompletedGameDate(new Date(), "back");
-      selectDate(recentDate);
-    } catch {
-      toast({
-        variant: "destructive",
-        title: "Recent games unavailable",
-        description: "We couldn't find the latest completed games. Please try again.",
-      });
-    } finally {
-      setIsFindingRecent(false);
-    }
-  };
-
   return (
     <div>
       <div className="mb-6 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
@@ -77,8 +57,6 @@ export default function Scores() {
           onPrevious={goPrevious}
           onNext={goNext}
           onToday={goToday}
-          onRecent={goToRecentGames}
-          isFindingRecent={isFindingRecent}
           showQuickJumps
           align="right"
         />
