@@ -149,6 +149,32 @@ function isCompletedEvent(event) {
   return Boolean(event.status?.type?.completed || event.competitions?.[0]?.status?.type?.completed);
 }
 
+function isScheduledEvent(event) {
+  const status = event.status?.type || event.competitions?.[0]?.status?.type;
+  return status?.state === "pre" || (!status?.completed && new Date(event.date).getTime() > Date.now());
+}
+
+export async function findNearestUpcomingGameDate(date = new Date()) {
+  const target = date instanceof Date ? date : parseEspnDate(String(date));
+  const targetDay = formatEspnDate(target);
+  const maxDays = 370;
+  const chunkDays = 30;
+
+  for (let offset = 0; offset <= maxDays; offset += chunkDays + 1) {
+    const start = shiftDate(target, offset);
+    const end = shiftDate(target, offset + chunkDays);
+    const data = await fetchScoreboardRange(start, end);
+    const game = uniqueEvents(data.events)
+      .filter(isScheduledEvent)
+      .sort((a, b) => getEventDay(a).localeCompare(getEventDay(b)))
+      .find((event) => getEventDay(event).localeCompare(targetDay) >= 0);
+
+    if (game) return parseEspnDate(getEventDay(game));
+  }
+
+  throw new Error("No upcoming NBA games found.");
+}
+
 export async function findNearestCompletedGameDate(date, direction = "back") {
   const target = date instanceof Date ? date : parseEspnDate(String(date));
   const targetDay = formatEspnDate(target);

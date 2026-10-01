@@ -6,7 +6,7 @@ import GameDateControls from "@/components/scores/GameDateControls";
 import ScoreCard from "@/components/scores/ScoreCard";
 import ErrorState from "@/components/shared/ErrorState";
 import { useScoreboard } from "@/hooks/use-scoreboard";
-import { findNearestCompletedGameDate } from "@/lib/espn";
+import { findNearestUpcomingGameDate } from "@/lib/espn";
 import { useToast } from "@/components/ui/use-toast";
 
 function ScoreboardSkeleton() {
@@ -26,7 +26,7 @@ function ScoreboardSkeleton() {
 }
 
 export default function Scores() {
-  const [isFindingRecent, setIsFindingRecent] = useState(false);
+  const [isFindingNextGames, setIsFindingNextGames] = useState(false);
   const { toast } = useToast();
   const {
     selectedDate,
@@ -45,19 +45,19 @@ export default function Scores() {
   const finalCount = games.filter((game) => game.status?.type?.completed).length;
   const scheduledCount = games.length - liveCount - finalCount;
 
-  const goToRecentGames = async () => {
-    setIsFindingRecent(true);
+  const goToNextGames = async () => {
+    setIsFindingNextGames(true);
     try {
-      const recentDate = await findNearestCompletedGameDate(new Date(), "back");
-      selectDate(recentDate);
+      const nextGameDate = await findNearestUpcomingGameDate(new Date());
+      selectDate(nextGameDate);
     } catch {
       toast({
         variant: "destructive",
-        title: "Recent games unavailable",
-        description: "We couldn't find the latest completed games. Please try again.",
+        title: "Upcoming games unavailable",
+        description: "We couldn't find the next scheduled games. Please try again.",
       });
     } finally {
-      setIsFindingRecent(false);
+      setIsFindingNextGames(false);
     }
   };
 
@@ -77,8 +77,8 @@ export default function Scores() {
           onPrevious={goPrevious}
           onNext={goNext}
           onToday={goToday}
-          onRecent={goToRecentGames}
-          isFindingRecent={isFindingRecent}
+          onNextGames={goToNextGames}
+          isFindingNextGames={isFindingNextGames}
           showQuickJumps
           align="right"
         />
